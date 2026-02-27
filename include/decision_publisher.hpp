@@ -19,6 +19,7 @@
 #include "domain.hpp"
 #include "rules.hpp"
 #include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/string.hpp>
 
 namespace adore
 {
@@ -29,6 +30,7 @@ struct DecisionPublisher
   rclcpp::Publisher<TrajectoryAdapter>::SharedPtr                       trajectory_suggestion_publisher;
   rclcpp::Publisher<adore_ros2_msgs::msg::AssistanceRequest>::SharedPtr assistance_publisher;
   rclcpp::Publisher<ParticipantAdapter>::SharedPtr                      traffic_participant_publisher;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr                   emergency_stop_started_publisher;
   void                                                                  setup( rclcpp::Node& node, const OutTopics& topics );
   void                                                                  publish( const rclcpp::Node& node, const Decision& decision );
 };

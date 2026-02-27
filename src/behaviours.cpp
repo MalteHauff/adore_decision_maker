@@ -13,6 +13,7 @@
 
 #include "behaviours.hpp"
 
+#include "rclcpp/rclcpp.hpp"
 #include "planning/planning_helpers.hpp" // your existing helpers
 
 namespace adore::behaviours
@@ -28,6 +29,13 @@ emergency_stop( const Domain& domain, PlanningParams& planning_tools )
   emergency_stop_trajectory.label = "Emergency Stop";
   out.trajectory                  = std::move( emergency_stop_trajectory );
   out.traffic_participant         = make_default_participant( domain, planning_tools );
+  RCLCPP_INFO( rclcpp::get_logger("decision_maker"), "Emergency Stop Behaviour Activated" );
+  RCLCPP_INFO( rclcpp::get_logger("decision_maker"), "Out: %s", out.trajectory->label.c_str() );
+  RCLCPP_INFO( rclcpp::get_logger("decision_maker"), "Out Trajectory: %s", out.trajectory->states.empty() ? "Empty" : "Non-Empty" );
+  RCLCPP_INFO( rclcpp::get_logger("decision_maker"), "trajectory label: %s", out.trajectory->label.c_str() );
+  if (domain.emergency_stop_request){
+    out.emergency_stop_requested = true;
+  }
   return out;
 }
 
@@ -124,7 +132,6 @@ safety_corridor( const Domain& domain, PlanningParams& planning_tools )
   auto     right_forward_points = planner::filter_points_in_front( domain.safety_corridor->right_border, *domain.vehicle_state );
   auto     safety_waypoints     = planner::shift_points_right( right_forward_points, planning_tools.vehicle_model->params.body_width );
   double   target_speed         = planner::is_point_to_right_of_line( *domain.vehicle_state, right_forward_points ) ? 0 : 2.0;
-
   auto planned_trajectory = planner::waypoints_to_trajectory( *domain.vehicle_state, safety_waypoints, domain.traffic_participants,
                                                               *planning_tools.vehicle_model, target_speed );
 

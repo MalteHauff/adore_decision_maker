@@ -28,6 +28,7 @@ struct Decision
   std::optional<dynamics::TrafficParticipant> traffic_participant;
   std::optional<dynamics::Trajectory>         trajectory_suggestion;
   std::optional<bool>                         assistance_request;
+  std::optional<bool>                         emergency_stop_requested;
 };
 
 struct PlanningParams
@@ -69,6 +70,7 @@ struct InTopics
   std::string suggested_trajectory_acceptance = "suggested_trajectory_accepted";
   std::string caution_zones                   = "caution_zones";
   std::string assistance_request              = "assistance_request";
+  std::string emergency_stop_request          = "emergency_stop_request";
 };
 
 struct OutTopics
@@ -77,6 +79,7 @@ struct OutTopics
   std::string trajectory_suggestion = "trajectory_suggestion";
   std::string assistance_request    = "assistance_request";
   std::string traffic_participant   = "traffic_participant";
+  std::string emergency_stop_started  = "emergency_stop_started";
 };
 
 struct DecisionParams
@@ -130,6 +133,18 @@ load_params( rclcpp::Node& node )
 
   planning_params.vehicle_model    = std::make_shared<dynamics::PhysicalVehicleModel>( vehicle_model_file, false );
   planning_params.comfort_settings = std::make_shared<dynamics::ComfortSettings>(); // default value comfort settings
+
+
+  auto& cs = *planning_params.comfort_settings;
+  cs.max_speed                = node.declare_parameter("comfort.max_speed", cs.max_speed);
+  cs.max_acceleration         = node.declare_parameter("comfort.max_acceleration", cs.max_acceleration);
+  cs.min_acceleration         = node.declare_parameter("comfort.min_acceleration", cs.min_acceleration);
+  cs.max_lateral_acceleration = node.declare_parameter("comfort.max_lateral_acceleration", cs.max_lateral_acceleration);
+  cs.speed_fraction_of_limit  = node.declare_parameter("comfort.speed_fraction_of_limit", cs.speed_fraction_of_limit);
+  cs.headway_scale            = node.declare_parameter("comfort.headway_scale", cs.headway_scale);
+  cs.time_headway             = node.declare_parameter("comfort.time_headway", cs.time_headway);
+  cs.distance_headway         = node.declare_parameter("comfort.distance_headway", cs.distance_headway);
+  cs.clamp(planning_params.vehicle_model->params);
 
   planning_params.planner.set_vehicle_parameters( planning_params.vehicle_model->params );
   planning_params.planner.set_comfort_settings( planning_params.comfort_settings );

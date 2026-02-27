@@ -52,6 +52,7 @@ struct Domain
 
   // memory
   bool sent_assistance_request = false;
+  bool emergency_stop_request = false;
 
 
   std::vector<rclcpp::SubscriptionBase::SharedPtr> subscribers;

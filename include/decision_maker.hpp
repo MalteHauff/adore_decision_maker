@@ -21,6 +21,8 @@
 #include "domain.hpp"
 #include "rules.hpp"
 #include <rclcpp/rclcpp.hpp>
+#include <mutex>
+#include <rcl_interfaces/msg/set_parameters_result.hpp>
 
 namespace adore
 {
@@ -45,7 +47,11 @@ private:
 
   DecisionParams               params;
   rclcpp::TimerBase::SharedPtr timer;
+  std::mutex params_mutex_;
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_;
 
+  rcl_interfaces::msg::SetParametersResult
+  on_parameters_set(const std::vector<rclcpp::Parameter>& parameters);
   void setup();
   void run(); // main loop
 };

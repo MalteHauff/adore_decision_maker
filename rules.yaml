@@ -1,4 +1,12 @@
 rules:
+
+  - name: Emergency Stop Request
+    require: [emergency_stop_requested]
+    forbid:  []
+    behaviour: emergency_stop_requested
+    priority: 100
+
+
   - name: Exit Safety Corridor
     require: [state_ok, safety_corridor_present]
     forbid:  []
@@ -52,3 +60,4 @@ rules:
     forbid:  []
     behaviour: emergency_stop
     priority: 0
+

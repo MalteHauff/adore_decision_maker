@@ -76,4 +76,11 @@ suggested_trajectory_accepted( const Domain& d, const ConditionParams& )
 {
   return d.suggested_trajectory_acceptance;
 }
+bool
+emergency_stop_requested( const Domain& d, const ConditionParams& )
+{
+  return d.emergency_stop_request;
+}
+
+
 } // namespace adore::conditions

@@ -38,6 +38,8 @@ bool route_available( const Domain& domain, const ConditionParams& params );
 bool need_assistance( const Domain& domain, const ConditionParams& params );
 bool sent_assistance_request( const Domain& domain, const ConditionParams& params );
 bool suggested_trajectory_accepted( const Domain& domain, const ConditionParams& params );
+bool emergency_stop_requested( const Domain& domain, const ConditionParams& params );
+
 
 inline ConditionMap
 make_condition_map()
@@ -51,6 +53,7 @@ make_condition_map()
     {               "need_assistance",               need_assistance },
     {       "sent_assistance_request",       sent_assistance_request },
     { "suggested_trajectory_accepted", suggested_trajectory_accepted },
+    {      "emergency_stop_requested",        emergency_stop_requested },
   };
 }
 

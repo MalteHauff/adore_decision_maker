@@ -66,6 +66,10 @@ Domain::setup( rclcpp::Node& n, const DomainParams& params, const InTopics& topi
   // subscribe to assistance request
   add_subscription<msg::AssistanceRequest>( n, topics.assistance_request,
                                             [&]( const msg::AssistanceRequest& msg ) { sent_assistance_request = msg.assistance_needed; } );
+
+  //subriptions for passenger request
+  add_subscription<std_msgs::msg::Bool>( n, topics.emergency_stop_request,
+                                         [&]( const std_msgs::msg::Bool& msg ) {emergency_stop_request = msg.data;} );
 }
 
 
