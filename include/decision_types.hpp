@@ -38,6 +38,7 @@ struct PlanningParams
   std::shared_ptr<dynamics::ComfortSettings>      comfort_settings;
   std::map<std::string, double>                   planner_settings;
   int                                             v2x_id = 0;
+  std::optional<double> park_target_route_s = std::nullopt;  
 };
 
 // define condition parameters
@@ -71,6 +72,7 @@ struct InTopics
   std::string caution_zones                   = "caution_zones";
   std::string assistance_request              = "assistance_request";
   std::string emergency_stop_request          = "emergency_stop_request";
+  std::string mission_command                 = "mission_command";
 };
 
 struct OutTopics
@@ -175,7 +177,7 @@ load_params( rclcpp::Node& node )
                                                                       in_topics.suggested_trajectory_acceptance );
   in_topics.caution_zones                   = node.declare_parameter( "topic_caution_zones", in_topics.caution_zones );
   in_topics.assistance_request              = node.declare_parameter( "topic_assistance_request", in_topics.assistance_request );
-
+  in_topics.mission_command =               node.declare_parameter("topic_mission_command", in_topics.mission_command);
   // ---------------------------------------------------------------------------------------------------------
   // -------------------------------------------- Out Topics -------------------------------------------------
   // ---------------------------------------------------------------------------------------------------------

@@ -16,7 +16,7 @@
 
 #include <fstream>
 #include <limits>
-
+#include <rclcpp/rclcpp.hpp>
 #include <yaml-cpp/yaml.h>
 
 namespace adore::rules
@@ -25,6 +25,7 @@ namespace adore::rules
 std::optional<std::string>
 choose_behaviour( const conditions::ConditionState& state, const Rules& rules )
 {
+  auto logger = rclcpp::get_logger("choose_behaviour");
   const auto is_true = [&]( const std::string& n ) {
     if( auto it = state.find( n ); it != state.end() )
       return it->second;
@@ -52,6 +53,10 @@ choose_behaviour( const conditions::ConditionState& state, const Rules& rules )
       best = rule;
     }
   }
+  // if( best )
+  //   RCLCPP_INFO( logger, "Chosen behaviour: '%s'", best->behaviour.c_str() );
+  // else
+  //   RCLCPP_INFO( logger, "No behaviour chosen" );
 
   return best ? std::optional<std::string>( best->behaviour ) : std::nullopt;
 }

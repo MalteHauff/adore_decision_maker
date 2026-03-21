@@ -70,6 +70,11 @@ Domain::setup( rclcpp::Node& n, const DomainParams& params, const InTopics& topi
   //subriptions for passenger request
   add_subscription<std_msgs::msg::Bool>( n, topics.emergency_stop_request,
                                          [&]( const std_msgs::msg::Bool& msg ) {emergency_stop_request = msg.data;} );
+
+  add_subscription<msg::MissionCommand>(
+    n, topics.mission_command,
+    [&](const msg::MissionCommand& msg) { mission_command = msg; }
+  );
 }
 
 

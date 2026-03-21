@@ -39,6 +39,10 @@ bool need_assistance( const Domain& domain, const ConditionParams& params );
 bool sent_assistance_request( const Domain& domain, const ConditionParams& params );
 bool suggested_trajectory_accepted( const Domain& domain, const ConditionParams& params );
 bool emergency_stop_requested( const Domain& domain, const ConditionParams& params );
+bool stop_and_park_active( const Domain& domain, const ConditionParams& params );
+bool park_allowed_here( const Domain& domain, const ConditionParams& params );
+//bool safety_corridor_present( const Domain& domain, const ConditionParams& params );
+bool resume_ride_requested(const Domain& domain, const ConditionParams& params);
 
 
 inline ConditionMap
@@ -54,6 +58,10 @@ make_condition_map()
     {       "sent_assistance_request",       sent_assistance_request },
     { "suggested_trajectory_accepted", suggested_trajectory_accepted },
     {      "emergency_stop_requested",        emergency_stop_requested },
+    {      "stop_and_park_active",        stop_and_park_active },
+    {      "park_allowed_here",        park_allowed_here },
+    {      "resume_ride_requested",        resume_ride_requested },
+
   };
 }
 

@@ -21,6 +21,7 @@
 #include "domain.hpp"
 #include "dynamics/comfort_settings.hpp"
 #include "planning/trajectory_planner.hpp"
+#include <unordered_map>
 
 namespace adore
 {
@@ -38,6 +39,12 @@ namespace behaviours
 [[nodiscard]] Decision safety_corridor( const Domain&, PlanningParams& );
 [[nodiscard]] Decision request_assistance( const Domain&, PlanningParams& );
 [[nodiscard]] Decision minimum_risk( const Domain&, PlanningParams& );
+[[nodiscard]] Decision stop_and_park_request( const Domain&, PlanningParams& );
+[[nodiscard]] Decision waiting_for_safe_parking( const Domain&, PlanningParams& );
+[[nodiscard]] Decision waiting_for_corridor(const Domain&, PlanningParams&);
+[[nodiscard]] Decision resume_ride(const Domain&, PlanningParams&);
+
+
 
 // create map lookup
 using BehaviourFnPtr = Decision ( * )( const Domain&, PlanningParams& );
@@ -58,7 +65,11 @@ make_behaviour_map()
     {        "safety_corridor",        &safety_corridor },
     {     "request_assistance",     &request_assistance },
     {           "minimum_risk",           &minimum_risk },
+    { "waiting_for_safe_parking", &waiting_for_safe_parking },
     { "emergency_stop_requested", &emergency_stop},
+    { "stop_and_park_request", &stop_and_park_request},
+    { "waiting_for_corridor", &waiting_for_corridor },
+    { "resume_ride", &resume_ride },
   };
 }
 
@@ -66,4 +77,4 @@ make_behaviour_map()
 dynamics::TrafficParticipant make_default_participant( const Domain& domain, const PlanningParams& planning_tools );
 
 } // namespace behaviours
-} // namespace adore
+}// namespace adore

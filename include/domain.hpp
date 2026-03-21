@@ -15,6 +15,7 @@
 #include <deque>
 #include <map>
 #include <vector>
+#include <memory>
 
 #include "adore_dynamics_adapters.hpp"
 #include "adore_dynamics_conversions.hpp"
@@ -26,12 +27,13 @@
 #include "adore_ros2_msgs/msg/state_monitor.hpp"
 #include "adore_ros2_msgs/msg/traffic_signals.hpp"
 #include "adore_ros2_msgs/msg/waypoints.hpp"
-
+#include "adore_ros2_msgs/msg/mission_command.hpp"
 #include "decision_types.hpp"
 #include "std_msgs/msg/bool.hpp"
 
 namespace adore
 {
+  namespace map {class Map;}
 struct Domain
 {
   void setup( rclcpp::Node& node, const DomainParams& params, const InTopics& topics );
@@ -48,11 +50,15 @@ struct Domain
   std::optional<dynamics::Trajectory>                   suggested_trajectory;
   CautionZones                                          caution_zones;
   std::optional<adore_ros2_msgs::msg::Waypoints>        waypoints;
+  std::optional<adore_ros2_msgs::msg::MissionCommand>   mission_command;
   bool                                                  suggested_trajectory_acceptance = false;
 
   // memory
   bool sent_assistance_request = false;
   bool emergency_stop_request = false;
+  bool stop_and_park_active = false;
+  bool resume_ride_active = false;
+  std::shared_ptr<const map::Map> map;
 
 
   std::vector<rclcpp::SubscriptionBase::SharedPtr> subscribers;

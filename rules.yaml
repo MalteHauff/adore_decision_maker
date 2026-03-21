@@ -6,12 +6,40 @@ rules:
     behaviour: emergency_stop_requested
     priority: 100
 
+  - name: Stop And Park Request
+    require: [state_ok, stop_and_park_active, park_allowed_here]
+    forbid: []
+    behaviour: stop_and_park_request
+    priority: 90
+  # - name: Stop And Park Request
+  #   require: [state_ok, stop_and_park_active, park_allowed_here, safety_corridor_present]
+  #   forbid: []
+  #   behaviour: stop_and_park_request
+  #   priority: 90
+
+  # - name: Stop And Park Wait For Corridor
+  #   require: [state_ok, stop_and_park_active, park_allowed_here]
+  #   forbid: [safety_corridor_present]
+  #   behaviour: waiting_for_corridor
+  #   priority: 89
+
+  - name: Stop And Park Wait For Safe Spot
+    require: [state_ok, stop_and_park_active]
+    forbid:  [park_allowed_here]
+    behaviour: waiting_for_safe_parking
+    priority: 85
 
   - name: Exit Safety Corridor
     require: [state_ok, safety_corridor_present]
     forbid:  []
     behaviour: safety_corridor
     priority: 80
+  
+  - name: Resume Ride
+    require: [state_ok, resume_ride_requested]
+    forbid:  []
+    behaviour: resume_ride
+    priority: 75
 
   - name: Follow Assistance
     require: [state_ok, need_assistance, waypoints_available, suggested_trajectory_accepted]

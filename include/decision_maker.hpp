@@ -43,16 +43,24 @@ private:
   Domain domain;
   // publishers
   DecisionPublisher publisher;
-
+  
 
   DecisionParams               params;
   rclcpp::TimerBase::SharedPtr timer;
   std::mutex params_mutex_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_;
 
+  // passenger requests
+  uint32_t last_command_id = 0;
+  bool park_active = false;
+  std::optional<double> park_target_route_s = std::nullopt;
+  enum{STOPPING, PARKED} park_state;
+
+
   rcl_interfaces::msg::SetParametersResult
   on_parameters_set(const std::vector<rclcpp::Parameter>& parameters);
   void setup();
+  void set_passenger_request_flags();
   void run(); // main loop
 };
 
