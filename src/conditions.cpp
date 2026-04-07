@@ -181,4 +181,20 @@ bool resume_ride_requested(const Domain& d, const ConditionParams& )
 //   return true;
 // }
 
+
+bool lane_change_left_requested(
+    const Domain& domain,
+    const ConditionParams& /*params*/)
+{ 
+  
+  return domain.lane_change_left_active;
+}
+
+bool lane_change_right_requested(
+    const Domain& domain,
+    const ConditionParams& /*params*/)
+{
+  return domain.lane_change_right_active;
+}
+
 } // namespace adore::conditions

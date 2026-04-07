@@ -41,6 +41,18 @@ rules:
     behaviour: resume_ride
     priority: 75
 
+  - name: Change Lane Left
+    require: [state_ok, route_available, lane_change_left_requested]
+    forbid:  [need_assistance, emergency_stop_requested, stop_and_park_active]
+    behaviour: change_lane_left_request
+    priority: 74
+
+  - name: Change Lane Right
+    require: [state_ok, route_available, lane_change_right_requested]
+    forbid:  [need_assistance, emergency_stop_requested, stop_and_park_active]
+    behaviour: change_lane_right_request
+    priority: 74
+
   - name: Follow Assistance
     require: [state_ok, need_assistance, waypoints_available, suggested_trajectory_accepted]
     forbid:  []

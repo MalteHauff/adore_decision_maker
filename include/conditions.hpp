@@ -43,7 +43,8 @@ bool stop_and_park_active( const Domain& domain, const ConditionParams& params )
 bool park_allowed_here( const Domain& domain, const ConditionParams& params );
 //bool safety_corridor_present( const Domain& domain, const ConditionParams& params );
 bool resume_ride_requested(const Domain& domain, const ConditionParams& params);
-
+bool lane_change_left_requested(const Domain& domain, const ConditionParams& params);
+bool lane_change_right_requested(const Domain& domain, const ConditionParams& params);
 
 inline ConditionMap
 make_condition_map()
@@ -61,7 +62,8 @@ make_condition_map()
     {      "stop_and_park_active",        stop_and_park_active },
     {      "park_allowed_here",        park_allowed_here },
     {      "resume_ride_requested",        resume_ride_requested },
-
+    {      "lane_change_left_requested",        lane_change_left_requested },
+    {      "lane_change_right_requested",        lane_change_right_requested },
   };
 }
 

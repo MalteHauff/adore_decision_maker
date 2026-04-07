@@ -15,8 +15,8 @@
 #include <optional>
 
 #include "adore_dynamics_conversions.hpp"
-
 #include "conditions.hpp"
+#include "behaviour_common.hpp"
 #include "decision_types.hpp"
 #include "domain.hpp"
 #include "dynamics/comfort_settings.hpp"
@@ -43,7 +43,8 @@ namespace behaviours
 [[nodiscard]] Decision waiting_for_safe_parking( const Domain&, PlanningParams& );
 [[nodiscard]] Decision waiting_for_corridor(const Domain&, PlanningParams&);
 [[nodiscard]] Decision resume_ride(const Domain&, PlanningParams&);
-
+[[nodiscard]] Decision change_lane_left_request(const Domain&, PlanningParams&);
+[[nodiscard]] Decision change_lane_right_request(const Domain&, PlanningParams&);
 
 
 // create map lookup
@@ -70,11 +71,13 @@ make_behaviour_map()
     { "stop_and_park_request", &stop_and_park_request},
     { "waiting_for_corridor", &waiting_for_corridor },
     { "resume_ride", &resume_ride },
+    { "change_lane_left_request", &change_lane_left_request },
+    { "change_lane_right_request", &change_lane_right_request },
   };
 }
 
 // helper for making participant
-dynamics::TrafficParticipant make_default_participant( const Domain& domain, const PlanningParams& planning_tools );
+// dynamics::TrafficParticipant make_default_participant( const Domain& domain, const PlanningParams& planning_tools );
 
 } // namespace behaviours
 }// namespace adore

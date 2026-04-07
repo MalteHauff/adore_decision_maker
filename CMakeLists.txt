@@ -61,6 +61,10 @@ set(CORE_SRC
   src/domain.cpp
   src/conditions.cpp
   src/rules.cpp
+  src/lane_change.cpp
+  src/stop_and_park.cpp
+  src/map_route_utils.cpp
+  src/behaviour_common.cpp
 )
 
 # -------------------------

@@ -38,7 +38,20 @@ struct PlanningParams
   std::shared_ptr<dynamics::ComfortSettings>      comfort_settings;
   std::map<std::string, double>                   planner_settings;
   int                                             v2x_id = 0;
-  std::optional<double> park_target_route_s = std::nullopt;  
+
+
+  // for passenger requests
+  std::optional<double> park_target_route_s = std::nullopt;
+
+  std::optional<size_t> lane_change_target_lane_id = std::nullopt;
+  std::optional<size_t> lane_change_source_lane_id = std::nullopt;
+  std::optional<double> lane_change_switch_source_s = std::nullopt;
+  int lane_change_direction = 0;
+
+  // one-shot / acknowledgement state
+  bool lane_change_done = false;
+  int lane_change_done_direction = 0;
+  std::optional<size_t> lane_change_done_lane_id = std::nullopt;
 };
 
 // define condition parameters
@@ -49,6 +62,7 @@ struct ConditionParams
   double max_ref_traj_age  = 1.0; // [s]
   size_t min_route_length  = 20;  // [m]
   double gps_sigma_ok      = 1.0; // [m]s
+  
 };
 
 struct DomainParams

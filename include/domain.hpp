@@ -58,6 +58,9 @@ struct Domain
   bool emergency_stop_request = false;
   bool stop_and_park_active = false;
   bool resume_ride_active = false;
+  bool lane_change_right_active = false;
+  bool lane_change_left_active = false;
+
   std::shared_ptr<const map::Map> map;
 
 
