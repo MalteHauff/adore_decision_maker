@@ -6,16 +6,6 @@
 namespace adore::behaviours::common
 {
 
-adore::map::MapPoint to_map_point(const dynamics::VehicleStateDynamic& state)
-{
-  adore::map::MapPoint p;
-  p.x = state.x;
-  p.y = state.y;
-  p.s = 0.0;
-  p.parent_id = 0;
-  return p;
-}
-
 Decision fallback_follow_or_standstill(
     const Domain& domain,
     PlanningParams& planning_tools,
