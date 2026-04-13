@@ -38,6 +38,7 @@ set(PROJECT_DEPS
   yaml-cpp
 )
 
+find_package(caches REQUIRED PATHS ${CMAKE_INSTALL_PREFIX}/../caches/lib/cmake/caches)
 foreach(pkg IN LISTS PROJECT_DEPS)
   find_package(${pkg} REQUIRED)
 endforeach()

@@ -181,7 +181,9 @@ Decision minimum_risk(const Domain& domain, PlanningParams& planning_tools)
   planned_trajectory =
       planning_tools.planner.optimize_trajectory(*domain.vehicle_state, planned_trajectory);
 
-  if (planned_trajectory.states.size() < 2)
+  // if (planned_trajectory.states.size() < 2)
+  // // planned_trajectory = planning_tools.planner.optimize_trajectory( *domain.vehicle_state, planned_trajectory );
+  if( planned_trajectory.states.size() < 2 )
   {
     return standstill(domain, planning_tools);
   }
