@@ -193,36 +193,11 @@ Decision minimum_risk(const Domain& domain, PlanningParams& planning_tools)
   return out;
 }
 
-// Decision waiting_for_safe_parking(const Domain& domain, PlanningParams& planning_tools)
-// {
-//   auto out = follow_route(domain, planning_tools);
-//   if (out.trajectory)
-//     out.trajectory->label = "Stop&Park: waiting for low-speed non-junction lane (V2A/V2B)";
-//   out.traffic_participant = make_default_participant(domain, planning_tools);
-//   return out;
-// }
-
-// Decision waiting_for_corridor(const Domain& domain, PlanningParams& planning_tools)
-// {
-//   auto out = follow_route(domain, planning_tools);
-//   out.assistance_request = false;
-//   if (out.trajectory)
-//     out.trajectory->label = "Stop&Park: waiting for safety corridor";
-//   out.traffic_participant = make_default_participant(domain, planning_tools);
-//   return out;
-// }
-
 Decision resume_ride(const Domain& domain, PlanningParams& planning_tools)
 {
   planning_tools.park_target_route_s.reset();
 
-  planning_tools.lane_change_target_lane_id.reset();
-  planning_tools.lane_change_source_lane_id.reset();
-  planning_tools.lane_change_switch_source_s.reset();
-  planning_tools.lane_change_direction = 0;
-  planning_tools.lane_change_done = false;
-  planning_tools.lane_change_done_direction = 0;
-  planning_tools.lane_change_done_lane_id.reset();
+  planning_tools.lane_change.reset_all();
 
   auto out = follow_route(domain, planning_tools);
   out.assistance_request = false;

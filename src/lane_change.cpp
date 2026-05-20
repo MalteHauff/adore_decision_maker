@@ -31,27 +31,34 @@ using map_utils::wrap_angle;
 constexpr int kDesiredLeft  = +1;
 constexpr int kDesiredRight = -1;
 
-constexpr double kLaneSearchRadiusMeters = 4.0;
-constexpr double kCurrentLaneMaxCenterDist = 4.0;
+constexpr double kLaneSearchRadiusMeters    = 4.0;
+constexpr double kCurrentLaneMaxCenterDist  = 4.0;
 
-constexpr double kDegToRad = M_PI / 180.0;
-constexpr double kMaxHeadingDiffRad = 15.0 * kDegToRad;
+constexpr double kDegToRad               = M_PI / 180.0;
+constexpr double kMaxHeadingDiffRad      = 15.0 * kDegToRad;
 constexpr double kMaxBranchHeadingDiffRad = 7.0 * kDegToRad;
 constexpr double kMinAdjacentLaneDistanceMeters = 2.2;
 constexpr double kMaxAdjacentLaneDistanceMeters = 4.8;
 
-constexpr double kTargetLaneReachedDistanceMeters = 0.2;
-constexpr double kSourceLaneLeftDistanceMeters = 2.3;
-constexpr double kTrajectoryFailRescueDistanceMeters = 1.0;
+constexpr double kTargetLaneReachedDistanceMeters    = 0.2;
+constexpr double kSourceLaneLeftDistanceMeters        = 2.3;
+constexpr double kTrajectoryFailRescueDistanceMeters  = 1.0;
 
 // Trajectory blending tuning parameters
-constexpr double kMinLaneChangeSpeedMs    = 4.0;   // floor speed during lane change
-constexpr double kLaneChangeSpeedBiasMs   = 0.5;   // small boost added to current speed
-constexpr double kTransitionDistFactor    = 1.3;   // transition_m = factor * target_speed
-constexpr double kMinTransitionMeters     = 9.0;
-constexpr double kMaxTransitionMeters     = 16.0;
-constexpr double kBlendLeadFactor         = 0.10;  // fraction of transition_m used as lead
-constexpr double kBlendLeadMaxMeters      = 1.5;
+constexpr double kMinLaneChangeSpeedMs   = 4.0;   // floor speed during lane change
+constexpr double kLaneChangeSpeedBiasMs  = 0.5;   // small boost added to current speed
+constexpr double kTransitionDistFactor   = 1.3;   // transition_m = factor * target_speed
+constexpr double kMinTransitionMeters    = 9.0;
+constexpr double kMaxTransitionMeters    = 16.0;
+constexpr double kBlendLeadFactor        = 0.10;  // fraction of transition_m used as lead
+constexpr double kBlendLeadMaxMeters     = 1.5;
+
+// Topology check window constants
+constexpr double kTopoWindowBeforeM  = 8.0;
+constexpr double kTopoWindowAfterM   = 20.0;
+constexpr double kTopoLookaheadM     = 45.0;
+constexpr double kTopoStepM          = 5.0;
+constexpr double kTopoMaxRouteHeadingDiffRad = 10.0 * kDegToRad;
 
 struct AdjacentLaneCandidate
 {
@@ -102,28 +109,18 @@ std::optional<double> distance_to_lane_center(
   return match->distance;
 }
 
-
 double smooth_step(double t)
 {
   t = std::clamp(t, 0.0, 1.0);
   return t * t * (3.0 - 2.0 * t);
 }
 
-double distance_xy(
-    double x0,
-    double y0,
-    double x1,
-    double y1)
-{
-  return std::hypot(x1 - x0, y1 - y0);
-}
-
 bool route_lane_is_stable_ahead(
     const Domain& domain,
     size_t current_route_lane_id,
     double route_s_now,
-    double lookahead_m = 45.0,
-    double step_m = 5.0)
+    double lookahead_m = kTopoLookaheadM,
+    double step_m      = kTopoStepM)
 {
   if (!domain.route.has_value())
     return false;
@@ -163,22 +160,20 @@ bool lane_is_in_current_route_corridor(
   return std::find(parallels.begin(), parallels.end(), lane_id) != parallels.end();
 }
 
+// ── State helpers (delegate to LaneChangeState methods) ───────────────────────
+
 void reset_lane_change_active_state(PlanningParams& planning_tools)
 {
   RCLCPP_INFO(
       rclcpp::get_logger("decision_maker"),
       "RESET active lane-change state: source=%s target=%s switch=%s cached=%s direction=%d",
-      planning_tools.lane_change_source_lane_id.has_value() ? "yes" : "no",
-      planning_tools.lane_change_target_lane_id.has_value() ? "yes" : "no",
-      planning_tools.lane_change_switch_source_s.has_value() ? "yes" : "no",
-      planning_tools.lane_change_cached_route.has_value() ? "yes" : "no",
-      planning_tools.lane_change_direction);
+      planning_tools.lane_change.source_lane_id.has_value() ? "yes" : "no",
+      planning_tools.lane_change.target_lane_id.has_value() ? "yes" : "no",
+      planning_tools.lane_change.switch_source_s.has_value() ? "yes" : "no",
+      planning_tools.lane_change.cached_route.has_value()    ? "yes" : "no",
+      planning_tools.lane_change.direction);
 
-  planning_tools.lane_change_target_lane_id.reset();
-  planning_tools.lane_change_source_lane_id.reset();
-  planning_tools.lane_change_switch_source_s.reset();
-  planning_tools.lane_change_direction = 0;
-  planning_tools.lane_change_cached_route.reset();
+  planning_tools.lane_change.reset_active();
 }
 
 void clear_lane_change_done_state(PlanningParams& planning_tools)
@@ -186,13 +181,11 @@ void clear_lane_change_done_state(PlanningParams& planning_tools)
   RCLCPP_INFO(
       rclcpp::get_logger("decision_maker"),
       "CLEAR done lane-change state: done=%d done_direction=%d done_lane=%s",
-      planning_tools.lane_change_done,
-      planning_tools.lane_change_done_direction,
-      planning_tools.lane_change_done_lane_id.has_value() ? "yes" : "no");
+      planning_tools.lane_change.done,
+      planning_tools.lane_change.done_direction,
+      planning_tools.lane_change.done_lane_id.has_value() ? "yes" : "no");
 
-  planning_tools.lane_change_done = false;
-  planning_tools.lane_change_done_direction = 0;
-  planning_tools.lane_change_done_lane_id.reset();
+  planning_tools.lane_change.reset_done();
 }
 
 void mark_lane_change_done(
@@ -206,12 +199,13 @@ void mark_lane_change_done(
       direction,
       reached_lane_id);
 
-  reset_lane_change_active_state(planning_tools);
-
-  planning_tools.lane_change_done = true;
-  planning_tools.lane_change_done_direction = direction;
-  planning_tools.lane_change_done_lane_id = reached_lane_id;
+  planning_tools.lane_change.reset_active();
+  planning_tools.lane_change.done           = true;
+  planning_tools.lane_change.done_direction = direction;
+  planning_tools.lane_change.done_lane_id   = reached_lane_id;
 }
+
+// ── Lane detection ────────────────────────────────────────────────────────────
 
 std::optional<size_t> find_current_driving_lane_id(const Domain& domain)
 {
@@ -282,6 +276,8 @@ std::optional<size_t> find_current_driving_lane_id(const Domain& domain)
   return best_lane_id;
 }
 
+// ── Adjacent lane selection ───────────────────────────────────────────────────
+
 std::optional<size_t> choose_adjacent_target_lane_id(
     const Domain& domain,
     size_t current_lane_id,
@@ -302,9 +298,6 @@ std::optional<size_t> choose_adjacent_target_lane_id(
 
   const bool current_is_motorway =
       domain.map->is_motorway_lane(current_lane_id);
-
-  const bool current_is_branch =
-      domain.map->is_branch_lane(current_lane_id);
 
   const auto candidate_lane_ids =
       domain.map->get_parallel_lanes(current_lane_id);
@@ -357,19 +350,20 @@ std::optional<size_t> choose_adjacent_target_lane_id(
       continue;
     }
 
+    const bool current_is_branch =
+        domain.map->is_branch_lane(current_lane_id);
+
     if ((current_is_branch || candidate_is_branch) &&
         heading_diff > kMaxBranchHeadingDiffRad)
     {
       continue;
     }
 
-    if (desired_direction == kDesiredLeft && signed_lat > 0.0)
-    {
-      valid_candidates.push_back(
-          {lane_id, signed_lat, heading_diff, match->distance});
-    }
+    const bool direction_matches =
+        (desired_direction == kDesiredLeft  && signed_lat > 0.0) ||
+        (desired_direction == kDesiredRight && signed_lat < 0.0);
 
-    if (desired_direction == kDesiredRight && signed_lat < 0.0)
+    if (direction_matches)
     {
       valid_candidates.push_back(
           {lane_id, signed_lat, heading_diff, match->distance});
@@ -400,13 +394,15 @@ std::optional<size_t> choose_adjacent_target_lane_id(
   return valid_candidates.front().lane_id;
 }
 
+// ── Topology check ────────────────────────────────────────────────────────────
+
 bool is_simple_lane_change_topology(
     const Domain& domain,
     size_t current_lane_id,
     size_t target_lane_id,
     double route_s_now,
-    double window_before = 8.0,
-    double window_after = 20.0)
+    double window_before = kTopoWindowBeforeM,
+    double window_after  = kTopoWindowAfterM)
 {
   if (!domain.map || !domain.route || !domain.vehicle_state)
     return false;
@@ -417,26 +413,18 @@ bool is_simple_lane_change_topology(
   if (!cur_lane || !tgt_lane)
     return false;
 
-  if (cur_lane->type != adore::map::LaneType::driving)
+  if (cur_lane->type != adore::map::LaneType::driving ||
+      tgt_lane->type != adore::map::LaneType::driving)
     return false;
 
-  if (tgt_lane->type != adore::map::LaneType::driving)
-    return false;
-
-  const bool current_is_motorway =
-      domain.map->is_motorway_lane(current_lane_id);
-
-  const bool target_is_motorway =
-      domain.map->is_motorway_lane(target_lane_id);
+  const bool current_is_motorway = domain.map->is_motorway_lane(current_lane_id);
+  const bool target_is_motorway  = domain.map->is_motorway_lane(target_lane_id);
 
   if (current_is_motorway != target_is_motorway)
     return false;
 
-  const bool current_is_branch =
-      domain.map->is_branch_lane(current_lane_id);
-
-  const bool target_is_branch =
-      domain.map->is_branch_lane(target_lane_id);
+  const bool current_is_branch = domain.map->is_branch_lane(current_lane_id);
+  const bool target_is_branch  = domain.map->is_branch_lane(target_lane_id);
 
   const auto ego_pt = to_map_point(*domain.vehicle_state);
 
@@ -479,8 +467,7 @@ bool is_simple_lane_change_topology(
   }
 
   const auto& route = *domain.route;
-  auto route_lane_now =
-      lane_id_at_route_s(route, route_s_now);
+  auto route_lane_now = lane_id_at_route_s(route, route_s_now);
 
   if (!route_lane_now.has_value())
     return false;
@@ -488,9 +475,7 @@ bool is_simple_lane_change_topology(
   if (!route_lane_is_stable_ahead(
           domain,
           *route_lane_now,
-          route_s_now,
-          45.0,
-          5.0))
+          route_s_now))
   {
     return false;
   }
@@ -506,12 +491,14 @@ bool is_simple_lane_change_topology(
     const double route_heading_diff =
         std::abs(wrap_angle(*h1 - *h0));
 
-    if (route_heading_diff > 10.0 * kDegToRad)
+    if (route_heading_diff > kTopoMaxRouteHeadingDiffRad)
       return false;
   }
 
   return true;
 }
+
+// ── Trajectory builder ────────────────────────────────────────────────────────
 
 std::optional<dynamics::Trajectory> build_lane_change_trajectory(
     const Domain& domain,
@@ -571,6 +558,7 @@ std::optional<dynamics::Trajectory> build_lane_change_trajectory(
 
   double first_alpha_debug = -1.0;
 
+  // ── Blended transition section ──
   for (double ds = kStepM; ds <= transition_m; ds += kStepM)
   {
     const double t =
@@ -596,24 +584,21 @@ std::optional<dynamics::Trajectory> build_lane_change_trajectory(
             tgt_match->lane_s,
             ds);
 
-    auto source_pt =
-        find_center_point_on_lane_at_s(*cur_lane, source_s);
-
-    auto target_pt =
-        find_center_point_on_lane_at_s(*tgt_lane, target_s);
+    auto source_pt = find_center_point_on_lane_at_s(*cur_lane, source_s);
+    auto target_pt = find_center_point_on_lane_at_s(*tgt_lane, target_s);
 
     if (!source_pt.has_value() || !target_pt.has_value())
       break;
 
     adore::map::MapPoint wp = *target_pt;
-
-    wp.x = (1.0 - alpha) * source_pt->x + alpha * target_pt->x;
-    wp.y = (1.0 - alpha) * source_pt->y + alpha * target_pt->y;
+    wp.x       = (1.0 - alpha) * source_pt->x + alpha * target_pt->x;
+    wp.y       = (1.0 - alpha) * source_pt->y + alpha * target_pt->y;
     wp.max_speed = target_speed;
 
     waypoints.push_back(wp);
   }
 
+  // ── Pure target-lane follow section ──
   for (double ds = transition_m + kStepM;
        ds <= transition_m + kTargetLaneFollowM;
        ds += kStepM)
@@ -624,8 +609,7 @@ std::optional<dynamics::Trajectory> build_lane_change_trajectory(
             tgt_match->lane_s,
             ds);
 
-    auto target_pt =
-        find_center_point_on_lane_at_s(*tgt_lane, target_s);
+    auto target_pt = find_center_point_on_lane_at_s(*tgt_lane, target_s);
 
     if (!target_pt.has_value())
       break;
@@ -669,37 +653,40 @@ std::optional<dynamics::Trajectory> build_lane_change_trajectory(
   return traj;
 }
 
+// ── Main lane-change state machine ────────────────────────────────────────────
+
 Decision change_lane_request(
     const Domain& domain,
     PlanningParams& planning_tools,
     int desired_direction,
     const std::string& label)
 {
+  // ── Guard: essential data must be present ──
   if (!domain.vehicle_state || !domain.map || !domain.route.has_value())
   {
     return fallback_follow_or_standstill(
         domain,
         planning_tools,
-        label + " (fallback)");
+        label + " (fallback: missing state/map/route)");
   }
 
-  if (planning_tools.lane_change_done &&
-      planning_tools.lane_change_done_direction == desired_direction)
+  auto& lc = planning_tools.lane_change; // convenience alias
+
+  // ── Already done for this direction ──────────────────────────────────────
+  if (lc.done && lc.done_direction == desired_direction)
   {
-    if (planning_tools.lane_change_done_lane_id.has_value() &&
-        domain.vehicle_state && domain.map)
+    // If the route planner has not yet caught up to the new lane, hold the
+    // target lane ourselves so the vehicle does not drift back.
+    if (lc.done_lane_id.has_value())
     {
       const auto current_route_lane = get_current_route_lane_id(domain);
       const bool route_updated =
           current_route_lane.has_value() &&
-          *current_route_lane == *planning_tools.lane_change_done_lane_id;
+          *current_route_lane == *lc.done_lane_id;
 
       if (!route_updated)
       {
-        const size_t done_lane = *planning_tools.lane_change_done_lane_id;
-
-        // Build a pure target-lane-following trajectory (source == target
-        // so the blend collapses to source == target waypoints).
+        const size_t done_lane = *lc.done_lane_id;
         auto traj = build_lane_change_trajectory(
             domain, planning_tools, done_lane, done_lane, label);
 
@@ -708,8 +695,7 @@ Decision change_lane_request(
           Decision out;
           out.trajectory        = std::move(*traj);
           out.trajectory->label = label + " (holding target lane, awaiting replan)";
-          out.traffic_participant =
-              make_default_participant(domain, planning_tools);
+          out.traffic_participant = make_default_participant(domain, planning_tools);
           out.assistance_request = false;
           return out;
         }
@@ -717,84 +703,66 @@ Decision change_lane_request(
     }
 
     auto out = follow_route(domain, planning_tools);
-
     if (out.trajectory)
       out.trajectory->label = label + " (already completed)";
-
     out.traffic_participant = make_default_participant(domain, planning_tools);
     return out;
   }
 
-  if (planning_tools.lane_change_done &&
-      planning_tools.lane_change_done_direction != desired_direction)
-  {
+  // ── Stale done-state from a different direction ──
+  if (lc.done && lc.done_direction != desired_direction)
     clear_lane_change_done_state(planning_tools);
-  }
 
+  // ── Determine which physical lane the vehicle is currently in ──
   auto current_lane_id = find_current_driving_lane_id(domain);
 
   if (!current_lane_id.has_value())
   {
-    if (planning_tools.lane_change_switch_source_s.has_value() &&
-        planning_tools.lane_change_source_lane_id.has_value() &&
-        planning_tools.lane_change_target_lane_id.has_value())
+    // Mid-manoeuvre: we have stored IDs but momentarily lost lane detection.
+    if (lc.switch_source_s.has_value() &&
+        lc.source_lane_id.has_value() &&
+        lc.target_lane_id.has_value())
     {
       RCLCPP_WARN(
           rclcpp::get_logger("decision_maker"),
           "%s: current lane not found mid-manoeuvre — "
           "building trajectory from stored IDs (src=%zu tgt=%zu)",
           label.c_str(),
-          *planning_tools.lane_change_source_lane_id,
-          *planning_tools.lane_change_target_lane_id);
+          *lc.source_lane_id,
+          *lc.target_lane_id);
 
-      const size_t target_lane_id = *planning_tools.lane_change_target_lane_id;
+      const size_t target_lane_id = *lc.target_lane_id;
       auto traj = build_lane_change_trajectory(
-          domain,
-          planning_tools,
-          target_lane_id,
-          target_lane_id,
-          label);
+          domain, planning_tools, target_lane_id, target_lane_id, label);
 
       if (traj.has_value())
       {
         const auto ego_pt_lc = to_map_point(*domain.vehicle_state);
-        auto src_dist_lc = distance_to_lane_center(
-            domain, *planning_tools.lane_change_source_lane_id, ego_pt_lc);
-        auto tgt_dist_lc = distance_to_lane_center(
-            domain, *planning_tools.lane_change_target_lane_id, ego_pt_lc);
+        auto src_dist_lc = distance_to_lane_center(domain, *lc.source_lane_id, ego_pt_lc);
+        auto tgt_dist_lc = distance_to_lane_center(domain, *lc.target_lane_id, ego_pt_lc);
 
         if (tgt_dist_lc.has_value() &&
             src_dist_lc.has_value() &&
             *tgt_dist_lc < kTargetLaneReachedDistanceMeters &&
             *src_dist_lc > kSourceLaneLeftDistanceMeters)
         {
-          mark_lane_change_done(
-              planning_tools,
-              desired_direction,
-              *planning_tools.lane_change_target_lane_id);
+          mark_lane_change_done(planning_tools, desired_direction, *lc.target_lane_id);
 
           auto out = follow_route(domain, planning_tools);
-
           if (out.trajectory)
-            out.trajectory->label =
-                label + " (completed: settled in target, no current lane)";
-
-          out.traffic_participant =
-              make_default_participant(domain, planning_tools);
-
+            out.trajectory->label = label + " (completed: settled in target, no current lane)";
+          out.traffic_participant = make_default_participant(domain, planning_tools);
           return out;
         }
 
         Decision out;
-        out.trajectory     = std::move(*traj);
-        out.traffic_participant =
-            make_default_participant(domain, planning_tools);
+        out.trajectory         = std::move(*traj);
+        out.traffic_participant = make_default_participant(domain, planning_tools);
         out.assistance_request = false;
         return out;
       }
 
-      // Trajectory build also failed (very unlikely). As a last resort yield
-      // follow_route for one cycle — next cycle will retry.
+      // Trajectory build also failed — yield follow_route for one cycle.
       RCLCPP_WARN(
           rclcpp::get_logger("decision_maker"),
           "%s: trajectory build also failed mid-manoeuvre with no current lane "
@@ -802,269 +770,199 @@ Decision change_lane_request(
           label.c_str());
 
       auto out = follow_route(domain, planning_tools);
-
       if (out.trajectory)
-        out.trajectory->label =
-            label + " (hold: no current lane + trajectory failed)";
-
-      out.traffic_participant =
-          make_default_participant(domain, planning_tools);
-
+        out.trajectory->label = label + " (hold: no current lane + trajectory failed)";
+      out.traffic_participant = make_default_participant(domain, planning_tools);
       return out;
     }
 
-    if (planning_tools.lane_change_source_lane_id.has_value() ||
-        planning_tools.lane_change_target_lane_id.has_value())
-    {
+    // Not mid-manoeuvre: clean up any stale partial state.
+    if (lc.is_active())
       reset_lane_change_active_state(planning_tools);
-    }
 
     return fallback_follow_or_standstill(
-        domain,
-        planning_tools,
-        label + " (no current lane)");
+        domain, planning_tools, label + " (no current lane)");
   }
 
-  if (planning_tools.lane_change_target_lane_id.has_value() &&
-      planning_tools.lane_change_direction != 0 &&
-      planning_tools.lane_change_direction != desired_direction)
+  // ── Direction mismatch: a different direction was latched ──
+  if (lc.target_lane_id.has_value() &&
+      lc.direction != 0 &&
+      lc.direction != desired_direction)
   {
     reset_lane_change_active_state(planning_tools);
     clear_lane_change_done_state(planning_tools);
   }
 
-  planning_tools.lane_change_direction = desired_direction;
+  lc.direction = desired_direction;
 
   auto route_lane_now = get_current_route_lane_id(domain);
-  const bool direct_lane_change_active =
-      planning_tools.lane_change_source_lane_id.has_value() &&
-      planning_tools.lane_change_target_lane_id.has_value() &&
-      planning_tools.lane_change_switch_source_s.has_value() &&
-      planning_tools.lane_change_direction == desired_direction;
 
+  const bool direct_lane_change_active =
+      lc.source_lane_id.has_value() &&
+      lc.target_lane_id.has_value() &&
+      lc.switch_source_s.has_value() &&
+      lc.direction == desired_direction;
+
+  // ── Stale source/target: check if route has moved past them ──
   if (!direct_lane_change_active &&
-      planning_tools.lane_change_source_lane_id.has_value() &&
-      planning_tools.lane_change_target_lane_id.has_value() &&
+      lc.source_lane_id.has_value() &&
+      lc.target_lane_id.has_value() &&
       route_lane_now.has_value())
   {
     const bool source_still_local =
-        lane_is_in_current_route_corridor(
-            domain,
-            *planning_tools.lane_change_source_lane_id,
-            *route_lane_now);
+        lane_is_in_current_route_corridor(domain, *lc.source_lane_id, *route_lane_now);
 
     const bool target_still_local =
-        lane_is_in_current_route_corridor(
-            domain,
-            *planning_tools.lane_change_target_lane_id,
-            *route_lane_now);
+        lane_is_in_current_route_corridor(domain, *lc.target_lane_id, *route_lane_now);
 
     if (!source_still_local && !target_still_local)
     {
-      // current_lane_id is guaranteed non-empty here (checked above).
-      const bool vehicle_is_on_route_lane =
-          *current_lane_id == *route_lane_now;
+      const bool vehicle_is_on_route_lane = (*current_lane_id == *route_lane_now);
 
       if (vehicle_is_on_route_lane)
       {
-        planning_tools.lane_change_source_lane_id.reset();
-        planning_tools.lane_change_target_lane_id.reset();
-        planning_tools.lane_change_switch_source_s.reset();
-        planning_tools.lane_change_cached_route.reset();
-        planning_tools.lane_change_direction = 0;
+        // Back on the route lane — quietly discard stale latch.
+        lc.reset_active();
       }
       else
       {
+        // Still off-route but both lanes are gone — declare done by corridor handoff.
         auto out = follow_route(domain, planning_tools);
-
         if (out.trajectory)
           out.trajectory->label = label + " (completed by corridor handoff)";
-
-        out.traffic_participant =
-            make_default_participant(domain, planning_tools);
-
-        mark_lane_change_done(
-            planning_tools,
-            desired_direction,
-            *current_lane_id);
-
+        out.traffic_participant = make_default_participant(domain, planning_tools);
+        mark_lane_change_done(planning_tools, desired_direction, *current_lane_id);
         return out;
       }
     }
   }
 
+  // ── Compute ego distances to source and target lanes ──
   const auto ego_pt = to_map_point(*domain.vehicle_state);
 
   std::optional<double> source_dist;
   std::optional<double> target_dist;
 
-  if (planning_tools.lane_change_source_lane_id.has_value())
-  {
-    source_dist =
-        distance_to_lane_center(
-            domain,
-            *planning_tools.lane_change_source_lane_id,
-            ego_pt);
-  }
+  if (lc.source_lane_id.has_value())
+    source_dist = distance_to_lane_center(domain, *lc.source_lane_id, ego_pt);
 
-  if (planning_tools.lane_change_target_lane_id.has_value())
-  {
-    target_dist =
-        distance_to_lane_center(
-            domain,
-            *planning_tools.lane_change_target_lane_id,
-            ego_pt);
-  }
+  if (lc.target_lane_id.has_value())
+    target_dist = distance_to_lane_center(domain, *lc.target_lane_id, ego_pt);
 
-  if (planning_tools.lane_change_target_lane_id.has_value() &&
-      current_lane_id.has_value() &&
-      *current_lane_id == *planning_tools.lane_change_target_lane_id &&
+  // ── Completion detection: current physical lane == target lane ──
+  if (lc.target_lane_id.has_value() &&
+      *current_lane_id == *lc.target_lane_id &&
       source_dist.has_value() &&
       target_dist.has_value() &&
       *source_dist > kSourceLaneLeftDistanceMeters &&
       *target_dist < kTargetLaneReachedDistanceMeters)
   {
-    mark_lane_change_done(
-        planning_tools,
-        desired_direction,
-        *planning_tools.lane_change_target_lane_id);
+    mark_lane_change_done(planning_tools, desired_direction, *lc.target_lane_id);
 
     auto out = follow_route(domain, planning_tools);
-
     if (out.trajectory)
       out.trajectory->label = label + " (completed by current lane detection)";
-
-    out.traffic_participant =
-        make_default_participant(domain, planning_tools);
-
+    out.traffic_participant = make_default_participant(domain, planning_tools);
     return out;
   }
 
-  if (planning_tools.lane_change_target_lane_id.has_value() &&
-      planning_tools.lane_change_source_lane_id.has_value() &&
+  // ── Completion detection: route planner already reports target lane ──
+  if (lc.target_lane_id.has_value() &&
+      lc.source_lane_id.has_value() &&
       route_lane_now.has_value() &&
-      *route_lane_now == *planning_tools.lane_change_target_lane_id)
+      *route_lane_now == *lc.target_lane_id)
   {
-    mark_lane_change_done(
-        planning_tools,
-        desired_direction,
-        *route_lane_now);
+    mark_lane_change_done(planning_tools, desired_direction, *route_lane_now);
 
     auto out = follow_route(domain, planning_tools);
-
     if (out.trajectory)
       out.trajectory->label = label + " (completed by route handoff)";
-
-    out.traffic_participant =
-        make_default_participant(domain, planning_tools);
-
+    out.traffic_participant = make_default_participant(domain, planning_tools);
     return out;
   }
 
-  if (planning_tools.lane_change_target_lane_id.has_value() &&
-      planning_tools.lane_change_source_lane_id.has_value() &&
+  // ── Completion detection: ego has settled inside target lane by distance ──
+  if (lc.target_lane_id.has_value() &&
+      lc.source_lane_id.has_value() &&
       target_dist.has_value() &&
       source_dist.has_value() &&
       *target_dist < kTargetLaneReachedDistanceMeters &&
       *source_dist > kSourceLaneLeftDistanceMeters)
   {
-    auto out = follow_route(domain, planning_tools);
+    mark_lane_change_done(planning_tools, desired_direction, *lc.target_lane_id);
 
+    auto out = follow_route(domain, planning_tools);
     if (out.trajectory)
       out.trajectory->label = label + " (completed by target-lane settling)";
-
-    out.traffic_participant =
-        make_default_participant(domain, planning_tools);
-
-    mark_lane_change_done(
-        planning_tools,
-        desired_direction,
-        *planning_tools.lane_change_target_lane_id);
-
+    out.traffic_participant = make_default_participant(domain, planning_tools);
     return out;
   }
 
-  if (!planning_tools.lane_change_target_lane_id.has_value())
+  // ── Pick target lane (first cycle only) ──
+  if (!lc.target_lane_id.has_value())
   {
     auto target_lane_id =
-        choose_adjacent_target_lane_id(
-            domain,
-            *current_lane_id,
-            desired_direction);
+        choose_adjacent_target_lane_id(domain, *current_lane_id, desired_direction);
 
     if (!target_lane_id.has_value())
     {
       auto out = follow_route(domain, planning_tools);
-
       if (out.trajectory)
         out.trajectory->label = label + " (No Adjacent Lane Fallback)";
-
-      out.traffic_participant =
-          make_default_participant(domain, planning_tools);
-
+      out.traffic_participant = make_default_participant(domain, planning_tools);
       return out;
     }
 
     clear_lane_change_done_state(planning_tools);
 
-    planning_tools.lane_change_target_lane_id = *target_lane_id;
-    planning_tools.lane_change_source_lane_id = *current_lane_id;
-    planning_tools.lane_change_switch_source_s.reset();
-    planning_tools.lane_change_cached_route.reset();
-    planning_tools.lane_change_direction = desired_direction;
+    lc.target_lane_id = *target_lane_id;
+    lc.source_lane_id = *current_lane_id;
+    lc.switch_source_s.reset();
+    lc.cached_route.reset();
+    lc.direction = desired_direction;
   }
 
   const double route_s_now = domain.route->get_s(*domain.vehicle_state);
 
-  if (!planning_tools.lane_change_switch_source_s.has_value())
+  // ── Topology guard: wait for a straight, simple stretch ──
+  if (!lc.switch_source_s.has_value())
   {
     const bool topology_is_simple =
         is_simple_lane_change_topology(
             domain,
             *current_lane_id,
-            *planning_tools.lane_change_target_lane_id,
+            *lc.target_lane_id,
             route_s_now);
 
     if (!topology_is_simple)
     {
       auto out = follow_route(domain, planning_tools);
-
       if (out.trajectory)
-        out.trajectory->label =
-            label + " (waiting for simpler local topology)";
-
-      out.traffic_participant =
-          make_default_participant(domain, planning_tools);
-
+        out.trajectory->label = label + " (waiting for simpler local topology)";
+      out.traffic_participant = make_default_participant(domain, planning_tools);
       return out;
     }
   }
 
   const size_t source_lane_for_planning =
-      planning_tools.lane_change_source_lane_id.value_or(*current_lane_id);
+      lc.source_lane_id.value_or(*current_lane_id);
 
-  const size_t target_lane_for_planning =
-      *planning_tools.lane_change_target_lane_id;
+  const size_t target_lane_for_planning = *lc.target_lane_id;
 
+  // ── Sanity: source == target means we are already done ──
   if (source_lane_for_planning == target_lane_for_planning)
   {
-    mark_lane_change_done(
-        planning_tools,
-        desired_direction,
-        target_lane_for_planning);
+    mark_lane_change_done(planning_tools, desired_direction, target_lane_for_planning);
 
     auto out = follow_route(domain, planning_tools);
-
     if (out.trajectory)
       out.trajectory->label = label + " (completed because source == target)";
-
-    out.traffic_participant =
-        make_default_participant(domain, planning_tools);
-
+    out.traffic_participant = make_default_participant(domain, planning_tools);
     return out;
   }
 
-  if (!planning_tools.lane_change_switch_source_s.has_value())
+  // ── Latch the start position on the source lane (once per manoeuvre) ──
+  if (!lc.switch_source_s.has_value())
   {
     const auto* src_lane_latch = find_lane(domain, source_lane_for_planning);
     if (src_lane_latch)
@@ -1074,17 +972,18 @@ Decision change_lane_request(
           find_closest_center_point_on_lane(*src_lane_latch, ego_pt_latch);
       if (cur_match_latch.has_value())
       {
-        planning_tools.lane_change_switch_source_s = cur_match_latch->lane_s;
+        lc.switch_source_s = cur_match_latch->lane_s;
         RCLCPP_INFO(
             rclcpp::get_logger("decision_maker"),
             "%s: latched switch_s=%.2f on source_lane=%zu",
             label.c_str(),
-            *planning_tools.lane_change_switch_source_s,
+            *lc.switch_source_s,
             source_lane_for_planning);
       }
     }
   }
 
+  // ── Build the blended trajectory ──
   auto lane_change_traj =
       build_lane_change_trajectory(
           domain,
@@ -1095,14 +994,14 @@ Decision change_lane_request(
 
   if (!lane_change_traj.has_value())
   {
+    // Near target or already past source → declare done despite trajectory failure.
     const bool near_target = target_dist.has_value() &&
         *target_dist < kTrajectoryFailRescueDistanceMeters;
 
     const bool left_source = source_dist.has_value() &&
         *source_dist > kSourceLaneLeftDistanceMeters;
 
-    if ((near_target || left_source) &&
-        planning_tools.lane_change_target_lane_id.has_value())
+    if ((near_target || left_source) && lc.target_lane_id.has_value())
     {
       RCLCPP_INFO(
           rclcpp::get_logger("decision_maker"),
@@ -1112,24 +1011,17 @@ Decision change_lane_request(
           target_dist.value_or(-1.0),
           source_dist.value_or(-1.0));
 
-      mark_lane_change_done(
-          planning_tools,
-          desired_direction,
-          *planning_tools.lane_change_target_lane_id);
+      mark_lane_change_done(planning_tools, desired_direction, *lc.target_lane_id);
 
       auto out = follow_route(domain, planning_tools);
-
       if (out.trajectory)
-        out.trajectory->label =
-            label + " (completed: trajectory build failed near target)";
-
-      out.traffic_participant =
-          make_default_participant(domain, planning_tools);
-
+        out.trajectory->label = label + " (completed: trajectory build failed near target)";
+      out.traffic_participant = make_default_participant(domain, planning_tools);
       return out;
     }
 
-    if (planning_tools.lane_change_switch_source_s.has_value())
+    // Mid-manoeuvre failure: hold state and retry next cycle.
+    if (lc.switch_source_s.has_value())
     {
       RCLCPP_WARN(
           rclcpp::get_logger("decision_maker"),
@@ -1140,59 +1032,48 @@ Decision change_lane_request(
           source_dist.value_or(-1.0));
 
       auto out = follow_route(domain, planning_tools);
-
       if (out.trajectory)
-        out.trajectory->label =
-            label + " (holding: trajectory build failed mid-manoeuvre)";
-
-      out.traffic_participant =
-          make_default_participant(domain, planning_tools);
-
+        out.trajectory->label = label + " (holding: trajectory build failed mid-manoeuvre)";
+      out.traffic_participant = make_default_participant(domain, planning_tools);
       return out;
     }
 
+    // Pre-manoeuvre failure: reset entirely and fall back.
     reset_lane_change_active_state(planning_tools);
     clear_lane_change_done_state(planning_tools);
 
     return fallback_follow_or_standstill(
-        domain,
-        planning_tools,
+        domain, planning_tools,
         label + " (failed to build direct lane-change trajectory)");
   }
 
+  // ── Periodic debug logging (throttled — no static counter needed) ──
   auto traj = std::move(*lane_change_traj);
 
-  static std::size_t debug_counter = 0;
-  if (++debug_counter % 5 == 0 && !traj.states.empty())
+  if (!traj.states.empty())
   {
     const auto& first_state = traj.states.front();
-    const auto& last_state = traj.states.back();
+    const auto& last_state  = traj.states.back();
 
     const double traj_start_to_ego =
-        distance_xy(
-            domain.vehicle_state->x,
-            domain.vehicle_state->y,
-            first_state.x,
-            first_state.y);
+        std::hypot(domain.vehicle_state->x - first_state.x,
+                   domain.vehicle_state->y - first_state.y);
 
     const double traj_end_to_ego =
-        distance_xy(
-            domain.vehicle_state->x,
-            domain.vehicle_state->y,
-            last_state.x,
-            last_state.y);
+        std::hypot(domain.vehicle_state->x - last_state.x,
+                   domain.vehicle_state->y - last_state.y);
 
-    double max_traj_step = 0.0;
+    double max_traj_step   = 0.0;
     double max_heading_jump = 0.0;
     std::optional<double> prev_heading;
 
     for (size_t i = 1; i < traj.states.size(); ++i)
     {
-      const auto& prev = traj.states[i - 1];
+      const auto& prev  = traj.states[i - 1];
       const auto& state = traj.states[i];
 
-      const double dx = state.x - prev.x;
-      const double dy = state.y - prev.y;
+      const double dx   = state.x - prev.x;
+      const double dy   = state.y - prev.y;
       const double step = std::hypot(dx, dy);
 
       max_traj_step = std::max(max_traj_step, step);
@@ -1200,21 +1081,18 @@ Decision change_lane_request(
       if (step > 1e-6)
       {
         const double heading = std::atan2(dy, dx);
-
         if (prev_heading.has_value())
-        {
-          const double heading_jump =
-              std::abs(wrap_angle(heading - *prev_heading));
-
-          max_heading_jump = std::max(max_heading_jump, heading_jump);
-        }
-
+          max_heading_jump = std::max(max_heading_jump,
+                                      std::abs(wrap_angle(heading - *prev_heading)));
         prev_heading = heading;
       }
     }
 
-    RCLCPP_INFO(
+    static auto throttle_clock = std::make_shared<rclcpp::Clock>(RCL_STEADY_TIME);
+    RCLCPP_INFO_THROTTLE(
         rclcpp::get_logger("decision_maker"),
+        *throttle_clock,
+        1000, // ms
         "%s direct traj: states=%zu start_to_ego=%.2f end_to_ego=%.2f "
         "max_traj_step=%.2f max_heading_jump_deg=%.1f "
         "src_dist=%.2f tgt_dist=%.2f",
@@ -1229,24 +1107,22 @@ Decision change_lane_request(
   }
 
   Decision out;
-  out.trajectory = std::move(traj);
+  out.trajectory         = std::move(traj);
   out.traffic_participant = make_default_participant(domain, planning_tools);
   out.assistance_request = false;
-
   return out;
 }
 
 } // anonymous namespace
+
+// ── Public entry points ───────────────────────────────────────────────────────
 
 Decision change_lane_left_request(
     const Domain& domain,
     PlanningParams& planning_tools)
 {
   return change_lane_request(
-      domain,
-      planning_tools,
-      kDesiredLeft,
-      "Change Lane Left");
+      domain, planning_tools, kDesiredLeft, "Change Lane Left");
 }
 
 Decision change_lane_right_request(
@@ -1254,10 +1130,7 @@ Decision change_lane_right_request(
     PlanningParams& planning_tools)
 {
   return change_lane_request(
-      domain,
-      planning_tools,
-      kDesiredRight,
-      "Change Lane Right");
+      domain, planning_tools, kDesiredRight, "Change Lane Right");
 }
 
 } // namespace adore::behaviours

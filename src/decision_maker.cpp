@@ -79,19 +79,22 @@ DecisionMaker::setup()
     RCLCPP_WARN(get_logger(), "No map file specified. Domain will operate without a map.");
   }
 
-  for (const auto& [lane_id, lane_ptr] : domain.map->lanes)
-  {
-    if (!lane_ptr) continue;
-    if (lane_ptr->type != adore::map::LaneType::parking) continue;
+   if (domain.map)
+    {
+      for (const auto& [lane_id, lane_ptr] : domain.map->lanes)
+      {
+        if (!lane_ptr) continue;
+        if (lane_ptr->type != adore::map::LaneType::parking) continue;
 
-    RCLCPP_INFO(
-        rclcpp::get_logger("decision_maker"),
-        "parking lane: id=%zu road=%zu left_of_reference=%d center_pts=%zu",
-        lane_id,
-        lane_ptr->road_id,
-        static_cast<int>(lane_ptr->left_of_reference),
-        lane_ptr->borders.center.interpolated_points.size());
-  }
+        RCLCPP_INFO(
+            rclcpp::get_logger("decision_maker"),
+            "parking lane: id=%zu road=%zu left_of_reference=%d center_pts=%zu",
+            lane_id,
+            lane_ptr->road_id,
+            static_cast<int>(lane_ptr->left_of_reference),
+            lane_ptr->borders.center.interpolated_points.size());
+      }
+    }
 
   param_cb_ = this->add_on_set_parameters_callback(
       std::bind(&DecisionMaker::on_parameters_set, this, std::placeholders::_1)
@@ -182,54 +185,39 @@ void DecisionMaker::set_passenger_request_flags()
     {
       last_command_id = cmd.command_id;
       bool same_lane_change_already_active = false;
+
       switch (cmd.command)
       {
         case adore_ros2_msgs::msg::MissionCommand::STOP_AND_PARK:
           park_active = true;
-          domain.stop_and_park_active = true;
-          domain.resume_ride_active = false;
-          domain.lane_change_left_active = false;
+          domain.stop_and_park_active   = true;
+          domain.resume_ride_active     = false;
+          domain.lane_change_left_active  = false;
           domain.lane_change_right_active = false;
 
           park_target_route_s.reset();
           params.planning_params.park_target_route_s.reset();
 
-          // reset lane-change state
-          params.planning_params.lane_change_target_lane_id.reset();
-          params.planning_params.lane_change_source_lane_id.reset();
-          params.planning_params.lane_change_switch_source_s.reset();
-          params.planning_params.lane_change_cached_route.reset();   
-          params.planning_params.lane_change_direction = 0;
-          params.planning_params.lane_change_done = false;
-          params.planning_params.lane_change_done_direction = 0;
-          params.planning_params.lane_change_done_lane_id.reset();
+          params.planning_params.lane_change.reset_all();
           break;
 
         case adore_ros2_msgs::msg::MissionCommand::RESUME_RIDE:
           park_active = false;
-          domain.stop_and_park_active = false;
-          domain.resume_ride_active = true;
-          domain.lane_change_left_active = false;
+          domain.stop_and_park_active   = false;
+          domain.resume_ride_active     = true;
+          domain.lane_change_left_active  = false;
           domain.lane_change_right_active = false;
 
           park_target_route_s.reset();
           params.planning_params.park_target_route_s.reset();
 
-          // reset lane-change state
-          params.planning_params.lane_change_target_lane_id.reset();
-          params.planning_params.lane_change_source_lane_id.reset();
-          params.planning_params.lane_change_switch_source_s.reset();
-          params.planning_params.lane_change_cached_route.reset();   
-          params.planning_params.lane_change_direction = 0;
-          params.planning_params.lane_change_done = false;
-          params.planning_params.lane_change_done_direction = 0;
-          params.planning_params.lane_change_done_lane_id.reset();
+          params.planning_params.lane_change.reset_all();
           break;
 
         case adore_ros2_msgs::msg::MissionCommand::CHANGE_LANE_LEFT:
           same_lane_change_already_active =
               domain.lane_change_left_active &&
-              !params.planning_params.lane_change_done;
+              !params.planning_params.lane_change.done;   // ← was lane_change_done
 
           if (same_lane_change_already_active)
           {
@@ -239,28 +227,20 @@ void DecisionMaker::set_passenger_request_flags()
             break;
           }
           RCLCPP_INFO(get_logger(), "Latched CHANGE_LANE_LEFT");
-          domain.stop_and_park_active = false;
-          domain.resume_ride_active = false;
-          domain.lane_change_left_active = true;
+          domain.stop_and_park_active   = false;
+          domain.resume_ride_active     = false;
+          domain.lane_change_left_active  = true;
           domain.lane_change_right_active = false;
 
           params.planning_params.park_target_route_s.reset();
 
-          // new lane-change command => clear previous lane-change state
-          params.planning_params.lane_change_target_lane_id.reset();
-          params.planning_params.lane_change_source_lane_id.reset();
-          params.planning_params.lane_change_switch_source_s.reset();
-          params.planning_params.lane_change_cached_route.reset();   
-          params.planning_params.lane_change_direction = 0;
-          params.planning_params.lane_change_done = false;
-          params.planning_params.lane_change_done_direction = 0;
-          params.planning_params.lane_change_done_lane_id.reset();
+          params.planning_params.lane_change.reset_all();
           break;
 
         case adore_ros2_msgs::msg::MissionCommand::CHANGE_LANE_RIGHT:
           same_lane_change_already_active =
               domain.lane_change_right_active &&
-              !params.planning_params.lane_change_done;
+              !params.planning_params.lane_change.done;   // ← was lane_change_done
 
           if (same_lane_change_already_active)
           {
@@ -270,22 +250,14 @@ void DecisionMaker::set_passenger_request_flags()
             break;
           }
           RCLCPP_INFO(get_logger(), "Latched CHANGE_LANE_RIGHT");
-          domain.stop_and_park_active = false;
-          domain.resume_ride_active = false;
-          domain.lane_change_left_active = false;
+          domain.stop_and_park_active   = false;
+          domain.resume_ride_active     = false;
+          domain.lane_change_left_active  = false;
           domain.lane_change_right_active = true;
 
           params.planning_params.park_target_route_s.reset();
 
-          // new lane-change command => clear previous lane-change state
-          params.planning_params.lane_change_target_lane_id.reset();
-          params.planning_params.lane_change_source_lane_id.reset();
-          params.planning_params.lane_change_switch_source_s.reset();
-          params.planning_params.lane_change_cached_route.reset();   
-          params.planning_params.lane_change_direction = 0;
-          params.planning_params.lane_change_done = false;
-          params.planning_params.lane_change_done_direction = 0;
-          params.planning_params.lane_change_done_lane_id.reset();
+          params.planning_params.lane_change.reset_all();
           break;
 
         case adore_ros2_msgs::msg::MissionCommand::KEEP_MORE_DISTANCE:
@@ -297,19 +269,18 @@ void DecisionMaker::set_passenger_request_flags()
     }
   }
 
-  // IMPORTANT:
-  // Once a lane change is completed, deactivate the corresponding request flag.
-  // This prevents the condition/rule layer from selecting the same lane-change
-  // behaviour forever.
-  if (params.planning_params.lane_change_done)
+  // Once a lane change is completed, deactivate the corresponding request flag
+  // so the condition/rule layer stops selecting the same behaviour.
+  if (params.planning_params.lane_change.done)
   {
-    if (params.planning_params.lane_change_done_direction == +1)
+    if (params.planning_params.lane_change.done_direction == +1)
       domain.lane_change_left_active = false;
 
-    if (params.planning_params.lane_change_done_direction == -1)
+    if (params.planning_params.lane_change.done_direction == -1)
       domain.lane_change_right_active = false;
   }
 }
+
 } // namespace adore
 
 /* Register as component --------------------------------------------- */

@@ -20,8 +20,4 @@ dynamics::TrafficParticipant make_default_participant(
     const Domain& domain,
     const PlanningParams& planning_tools);
 
-    
-adore::map::MapPoint to_map_point(
-    const adore::dynamics::VehicleStateDynamic& state);
-
 } // namespace adore::behaviours::common

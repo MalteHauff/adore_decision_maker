@@ -119,7 +119,12 @@ static double speed_limit_from_route_fallback(const Domain& d)
   if(it->second.max_speed.has_value())
     return *it->second.max_speed;
 
-  return std::abs(d.vehicle_state->vx);
+  constexpr double kFallbackSpeedLimitMs = 13.9; // ≈ 50 km/h
+  RCLCPP_WARN_ONCE(
+      rclcpp::get_logger("conditions"),
+      "No speed limit annotation on route — using fallback %.1f m/s",
+      kFallbackSpeedLimitMs);
+  return kFallbackSpeedLimitMs;
 }
 
 bool park_allowed_here( const Domain& d, const ConditionParams& )

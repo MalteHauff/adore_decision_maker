@@ -31,6 +31,59 @@ struct Decision
   std::optional<bool>                         emergency_stop_requested;
 };
 
+// ---------------------------------------------------------------------------
+// LaneChangeState
+//
+// All mutable bookkeeping for an in-progress (or recently completed) lane
+// change is gathered here so that PlanningParams stays tidy and the reset
+// logic can live in one place instead of being copy-pasted for every
+// MissionCommand case.
+// ---------------------------------------------------------------------------
+struct LaneChangeState
+{
+  // ── active-manoeuvre fields ──────────────────────────────────────────────
+  std::optional<size_t>            source_lane_id; // lane we are leaving
+  std::optional<size_t>            target_lane_id; // lane we are moving into
+  std::optional<double>            switch_source_s; // s-coord on source at latch time
+  int                              direction    = 0; // +1 = left, -1 = right
+  std::optional<adore::map::Route> cached_route;
+
+  // ── completion acknowledgement (one-shot) ───────────────────────────────
+  // Set by lane_change.cpp when the vehicle has settled in the target lane.
+  // Cleared by DecisionMaker::set_passenger_request_flags once the
+  // condition/rule layer has seen the "done" flag and deactivated the request.
+  bool                  done           = false;
+  int                   done_direction = 0;
+  std::optional<size_t> done_lane_id;
+
+  // ── helpers ─────────────────────────────────────────────────────────────
+  bool is_active() const
+  {
+    return source_lane_id.has_value() && target_lane_id.has_value();
+  }
+
+  /// Clear the active-manoeuvre bookkeeping (source, target, switch_s, …).
+  void reset_active()
+  {
+    source_lane_id.reset();
+    target_lane_id.reset();
+    switch_source_s.reset();
+    cached_route.reset();
+    direction = 0;
+  }
+
+  /// Clear the completion-acknowledgement fields (done, done_direction, …).
+  void reset_done()
+  {
+    done           = false;
+    done_direction = 0;
+    done_lane_id.reset();
+  }
+
+  /// Clear everything — call this when a new command supersedes the old one.
+  void reset_all() { reset_active(); reset_done(); }
+};
+
 struct PlanningParams
 {
   planner::TrajectoryPlanner                      planner;
@@ -39,21 +92,11 @@ struct PlanningParams
   std::map<std::string, double>                   planner_settings;
   int                                             v2x_id = 0;
 
-
   // for passenger requests
   std::optional<double> park_target_route_s = std::nullopt;
 
-  std::optional<size_t> lane_change_target_lane_id = std::nullopt;
-  std::optional<size_t> lane_change_source_lane_id = std::nullopt;
-  std::optional<double> lane_change_switch_source_s = std::nullopt;
-  int lane_change_direction = 0;
-
-  std::optional<adore::map::Route> lane_change_cached_route;
-
-  // one-shot / acknowledgement state
-  bool lane_change_done = false;
-  int lane_change_done_direction = 0;
-  std::optional<size_t> lane_change_done_lane_id = std::nullopt;
+  // All lane-change bookkeeping lives in this sub-struct.
+  LaneChangeState lane_change;
 };
 
 // define condition parameters
@@ -63,8 +106,7 @@ struct ConditionParams
   size_t min_ref_traj_size = 5;
   double max_ref_traj_age  = 1.0; // [s]
   size_t min_route_length  = 20;  // [m]
-  double gps_sigma_ok      = 1.0; // [m]s
-  
+  double gps_sigma_ok      = 1.0; // [m]
 };
 
 struct DomainParams
@@ -193,7 +235,7 @@ load_params( rclcpp::Node& node )
                                                                       in_topics.suggested_trajectory_acceptance );
   in_topics.caution_zones                   = node.declare_parameter( "topic_caution_zones", in_topics.caution_zones );
   in_topics.assistance_request              = node.declare_parameter( "topic_assistance_request", in_topics.assistance_request );
-  in_topics.mission_command =               node.declare_parameter("topic_mission_command", in_topics.mission_command);
+  in_topics.mission_command                 = node.declare_parameter("topic_mission_command", in_topics.mission_command);
   // ---------------------------------------------------------------------------------------------------------
   // -------------------------------------------- Out Topics -------------------------------------------------
   // ---------------------------------------------------------------------------------------------------------
