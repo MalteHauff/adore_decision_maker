@@ -44,4 +44,14 @@ dynamics::TrafficParticipant make_default_participant(
   return participant;
 }
 
+adore::map::MapPoint to_map_point(
+    const adore::dynamics::VehicleStateDynamic& state)
+{
+  adore::map::MapPoint p;
+  p.x = state.x;
+  p.y = state.y;
+  // p.z = 0.0;
+  return p;
+}
+
 } // namespace adore::behaviours::common

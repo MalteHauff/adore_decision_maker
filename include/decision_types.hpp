@@ -48,6 +48,8 @@ struct PlanningParams
   std::optional<double> lane_change_switch_source_s = std::nullopt;
   int lane_change_direction = 0;
 
+  std::optional<adore::map::Route> lane_change_cached_route;
+
   // one-shot / acknowledgement state
   bool lane_change_done = false;
   int lane_change_done_direction = 0;

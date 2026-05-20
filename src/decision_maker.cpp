@@ -181,7 +181,7 @@ void DecisionMaker::set_passenger_request_flags()
     if (cmd.command_id != last_command_id)
     {
       last_command_id = cmd.command_id;
-
+      bool same_lane_change_already_active = false;
       switch (cmd.command)
       {
         case adore_ros2_msgs::msg::MissionCommand::STOP_AND_PARK:
@@ -198,6 +198,7 @@ void DecisionMaker::set_passenger_request_flags()
           params.planning_params.lane_change_target_lane_id.reset();
           params.planning_params.lane_change_source_lane_id.reset();
           params.planning_params.lane_change_switch_source_s.reset();
+          params.planning_params.lane_change_cached_route.reset();   
           params.planning_params.lane_change_direction = 0;
           params.planning_params.lane_change_done = false;
           params.planning_params.lane_change_done_direction = 0;
@@ -218,6 +219,7 @@ void DecisionMaker::set_passenger_request_flags()
           params.planning_params.lane_change_target_lane_id.reset();
           params.planning_params.lane_change_source_lane_id.reset();
           params.planning_params.lane_change_switch_source_s.reset();
+          params.planning_params.lane_change_cached_route.reset();   
           params.planning_params.lane_change_direction = 0;
           params.planning_params.lane_change_done = false;
           params.planning_params.lane_change_done_direction = 0;
@@ -225,6 +227,17 @@ void DecisionMaker::set_passenger_request_flags()
           break;
 
         case adore_ros2_msgs::msg::MissionCommand::CHANGE_LANE_LEFT:
+          same_lane_change_already_active =
+              domain.lane_change_left_active &&
+              !params.planning_params.lane_change_done;
+
+          if (same_lane_change_already_active)
+          {
+            RCLCPP_INFO(
+                get_logger(),
+                "Ignoring duplicate CHANGE_LANE_LEFT while lane change is already active");
+            break;
+          }
           RCLCPP_INFO(get_logger(), "Latched CHANGE_LANE_LEFT");
           domain.stop_and_park_active = false;
           domain.resume_ride_active = false;
@@ -237,6 +250,7 @@ void DecisionMaker::set_passenger_request_flags()
           params.planning_params.lane_change_target_lane_id.reset();
           params.planning_params.lane_change_source_lane_id.reset();
           params.planning_params.lane_change_switch_source_s.reset();
+          params.planning_params.lane_change_cached_route.reset();   
           params.planning_params.lane_change_direction = 0;
           params.planning_params.lane_change_done = false;
           params.planning_params.lane_change_done_direction = 0;
@@ -244,6 +258,17 @@ void DecisionMaker::set_passenger_request_flags()
           break;
 
         case adore_ros2_msgs::msg::MissionCommand::CHANGE_LANE_RIGHT:
+          same_lane_change_already_active =
+              domain.lane_change_right_active &&
+              !params.planning_params.lane_change_done;
+
+          if (same_lane_change_already_active)
+          {
+            RCLCPP_INFO(
+                get_logger(),
+                "Ignoring duplicate CHANGE_LANE_RIGHT while lane change is already active");
+            break;
+          }
           RCLCPP_INFO(get_logger(), "Latched CHANGE_LANE_RIGHT");
           domain.stop_and_park_active = false;
           domain.resume_ride_active = false;
@@ -256,6 +281,7 @@ void DecisionMaker::set_passenger_request_flags()
           params.planning_params.lane_change_target_lane_id.reset();
           params.planning_params.lane_change_source_lane_id.reset();
           params.planning_params.lane_change_switch_source_s.reset();
+          params.planning_params.lane_change_cached_route.reset();   
           params.planning_params.lane_change_direction = 0;
           params.planning_params.lane_change_done = false;
           params.planning_params.lane_change_done_direction = 0;
