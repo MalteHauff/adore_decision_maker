@@ -15,6 +15,7 @@
 #include "adore_ros2_msgs/msg/odd.hpp"
 #include "adore_ros2_msgs/msg/traffic_participant.hpp"
 #include "adore_ros2_msgs/msg/traffic_participant_set.hpp"
+#include "adore_ros2_msgs/msg/passenger_request.hpp"
 #include "behaviors.hpp"
 #include "conditions.hpp"
 
@@ -138,6 +139,22 @@ void DecisionMaker::setup_subscribers()
                                         suggested_remote_operator_trajectory = dynamics::conversions::to_cpp_type(msg); 
                                         suggested_remote_operator_trajectory.value().adjust_start_time( latest_vehicle_state_dynamic.value().time );
                                        });
+
+
+  //passenger requests
+                                      
+  subscriber_passenger_request =
+    create_subscription<adore_ros2_msgs::msg::PassengerRequest>(
+        "passenger_request", 10,
+        [this]( const adore_ros2_msgs::msg::PassengerRequest& msg ) {
+            handle_passenger_request( msg );
+        } );
+  subscriber_mission_command =
+    create_subscription<adore_ros2_msgs::msg::MissionCommand>(
+        "mission_command", 10,
+        [this]( const adore_ros2_msgs::msg::MissionCommand& msg ) {
+            handle_mission_command( msg );
+        } );
 }
 
 void DecisionMaker::setup_publishers()
@@ -160,7 +177,13 @@ void DecisionMaker::timer_callback()
   // @TODO, add publisher and behavior for signals
 
   publisher_v2x_traffic_participant->publish( make_default_participant() );
-
+  if (passenger_emergency_stop &&
+      latest_vehicle_state_dynamic.has_value() &&
+      latest_vehicle_state_dynamic->vx < 0.05)
+  {
+      passenger_emergency_stop = false;
+      RCLCPP_INFO(get_logger(), "Vehicle stopped — passenger emergency cleared.");
+  }
   // @TODO, add a cleanup step, that removes old caution zones and old suggested trajectories, old safety corridors
 }
 
@@ -174,6 +197,13 @@ behavior::Behavior DecisionMaker::choose_and_plan_driving_behavior()
   bool needs_to_avoid_safety_corridor = conditions::needs_to_avoid_safety_corridor(latest_vehicle_state_dynamic, latest_safety_corridor);
   bool can_drive_managed = conditions::can_drive_managed(latest_vehicle_state_dynamic, time_now, latest_managed_zone, latest_managed_trajectory);
   bool odd_conditions_satisfied = conditions::odd_conditions_satisfied(latest_odd, time_now);
+
+
+
+  // if (passenger_emergency_stop)
+  // {
+  //     return behavior::emergency(planner, latest_vehicle_state_dynamic);
+  // }
 
   if (
     has_localization &&
@@ -223,6 +253,27 @@ behavior::Behavior DecisionMaker::choose_and_plan_driving_behavior()
   if (
       has_localization &&
       has_mission &&
+      odd_conditions_satisfied &&
+      resume_ride_requested
+  )
+  {
+      resume_ride_requested = false;
+
+      return behavior::resume_ride(
+        planner,
+        latest_vehicle_state_dynamic.value(),
+        latest_route.value(),
+        traffic_participants,
+        comfort_settings,
+        traffic_signals,
+        latest_weather
+    );
+  }
+
+
+  if (
+      has_localization &&
+      has_mission &&
       odd_conditions_satisfied
   )
   {
@@ -231,6 +282,7 @@ behavior::Behavior DecisionMaker::choose_and_plan_driving_behavior()
                                 latest_vehicle_state_dynamic.value(),
                                 latest_route.value(),
                                 traffic_participants,
+                                comfort_settings,
                                 traffic_signals,
                                 latest_weather
                               );
@@ -284,6 +336,102 @@ adore_ros2_msgs::msg::TrafficParticipant DecisionMaker::make_default_participant
 
   return dynamics::conversions::to_ros_msg( participant );
 }
+
+void DecisionMaker::handle_passenger_request(
+    const adore_ros2_msgs::msg::PassengerRequest& msg)
+{
+    using PR = adore_ros2_msgs::msg::PassengerRequest;
+
+    const float increase_factor = (!msg.numerical_detail.empty())
+                                  ? static_cast<float>(msg.numerical_detail[0])
+                                  : 1.3f;
+
+    const float decrease_factor = (!msg.numerical_detail.empty())
+                                      ? static_cast<float>(msg.numerical_detail[0])
+                                      : 0.7f;
+
+    auto& cs = comfort_settings;
+    bool changed = false;
+
+    switch (msg.type)
+    {
+        case PR::INCREASE_VELOCITY:
+            cs.max_speed *= increase_factor;
+            changed = true;
+            break;
+
+        case PR::DECREASE_VELOCITY:
+            cs.max_speed *= decrease_factor;
+            changed = true;
+            break;
+
+        case PR::DRIVE_MORE_SPORTILY:
+            cs.max_acceleration         *= increase_factor;
+            cs.min_acceleration         *= increase_factor;
+            cs.max_lateral_acceleration *= increase_factor;
+            changed = true;
+            break;
+
+        case PR::DRIVE_MORE_COMFORTABLY:
+            cs.max_acceleration         *= decrease_factor;
+            cs.min_acceleration         *= decrease_factor;
+            cs.max_lateral_acceleration *= decrease_factor;
+            changed = true;
+            break;
+
+        case PR::KEEP_MORE_DISTANCE:
+            cs.time_headway     *= increase_factor;
+            cs.distance_headway *= increase_factor;
+            changed = true;
+            break;
+
+        case PR::EXECUTE_EMERGENCY_STOP:
+            passenger_emergency_stop = true;
+            RCLCPP_WARN(get_logger(), "Passenger emergency stop requested!");
+            changed = true;
+            break;
+
+        default:
+            return;
+    }
+
+    if (changed)
+    {
+        cs.clamp(planner.get_physical_vehicle_parameters()); // enforce physical limits
+        //planner.set_comfort_settings(*comfort_settings);     // push into planner
+        RCLCPP_INFO(get_logger(),
+            "Comfort settings updated: max_speed=%.1f time_headway=%.1f",
+            cs.max_speed, cs.time_headway);
+    }
+}
+
+void DecisionMaker::handle_mission_command(
+    const adore_ros2_msgs::msg::MissionCommand& msg )
+{
+    using MC = adore_ros2_msgs::msg::MissionCommand;
+
+    if( !msg.enable )
+    {
+        return;
+    }
+
+    switch( msg.command )
+    {
+        case MC::RESUME_RIDE:
+            resume_ride_requested = true;
+
+            remote_operator_drive_approval = false;
+            suggested_remote_operator_trajectory.reset();
+
+            RCLCPP_INFO( get_logger(), "Resume ride requested." );
+            break;
+
+        default:
+            break;
+    }
+}
+
+
 
 } // namespace adore
 
