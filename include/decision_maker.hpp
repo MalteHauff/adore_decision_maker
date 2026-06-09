@@ -26,9 +26,20 @@
 #include "adore_ros2_msgs/msg/weather.hpp"
 #include <adore_math/polygon.h>
 #include "std_msgs/msg/bool.hpp"
+#include "adore_ros2_msgs/msg/passenger_request.hpp"
+#include <dynamics/comfort_settings.hpp>
+#include "adore_ros2_msgs/msg/mission_command.hpp"
+
 
 namespace adore
 {
+
+
+namespace behavior
+{
+struct Behavior;
+}
+
 
 class DecisionMaker : public rclcpp::Node
 {
@@ -60,6 +71,11 @@ private:
   rclcpp::Subscription<adore_ros2_msgs::msg::Trajectory>::SharedPtr subscriber_suggested_remote_operator_trajectory;
   // rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr       subscriber_automation_toggle;
 
+
+  //passenger request subscribers
+  rclcpp::Subscription<adore_ros2_msgs::msg::PassengerRequest>::SharedPtr subscriber_passenger_request;
+  // rclcpp::Subscription<adore_ros2_msgs::msg::MissionCommand>::SharedPtr subscriber_mission_command;
+
   int v2x_id = 0;
 
   std::optional<adore_ros2_msgs::msg::VehicleInfo> latest_vehicle_info;
@@ -71,18 +87,22 @@ private:
   // Planning
   planner::TrajectoryPlanner planner; // @TODO Think most of these can be removed
   dynamics::PhysicalVehicleParameters physical_vehicle_parameters;
-  std::shared_ptr<dynamics::ComfortSettings> comfort_settings;
-
+  //std::shared_ptr<dynamics::ComfortSettings> comfort_settings;
+  dynamics::ComfortSettings comfort_settings;
+  
   // Domain
   std::optional<dynamics::VehicleStateDynamic> latest_vehicle_state_dynamic;
   std::optional<map::Route> latest_route;
   std::map<size_t, adore_ros2_msgs::msg::TrafficSignal> traffic_signals;
   std::optional<dynamics::Trajectory> suggested_remote_operator_trajectory; // A trajectory received by a remote operator
   bool remote_operator_drive_approval = false;
+  bool passenger_emergency_stop = false;
+  bool resume_ride_requested = false;
   std::optional<adore_ros2_msgs::msg::SafetyCorridor> latest_safety_corridor;
   std::optional<dynamics::Trajectory> latest_reference_trajectory;
   std::optional<adore_ros2_msgs::msg::Odd> latest_odd;
   std::optional<adore_ros2_msgs::msg::Weather> latest_weather;
+  //std::optional<UserComfortSettings> latest_user_comfort;
 
   std::optional<dynamics::Trajectory> latest_managed_trajectory;
   std::optional<math::Polygon2d> latest_managed_zone;
@@ -93,6 +113,8 @@ private:
   // DecisionParams               params;
   rclcpp::TimerBase::SharedPtr timer;
 
+  
+
 
   void load_parameters();
   void setup_subscribers();
@@ -101,6 +123,7 @@ private:
 
   behavior::Behavior choose_and_plan_driving_behavior();
   adore_ros2_msgs::msg::TrafficParticipant make_default_participant();
+  void handle_passenger_request(const adore_ros2_msgs::msg::PassengerRequest& msg);
 };
 
 } // namespace adore

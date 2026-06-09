@@ -23,65 +23,90 @@ namespace behavior
 {
     Behavior driving_mission(
                                 planner::TrajectoryPlanner& planner,
-                                const dynamics::VehicleStateDynamic& vehicle_state_dynamic,  
+                                const dynamics::VehicleStateDynamic& vehicle_state_dynamic,
                                 const map::Route& route,
                                 const dynamics::TrafficParticipantSet& traffic_participants,
+                                const dynamics::ComfortSettings& comfort_settings,
                                 const std::map<size_t, adore_ros2_msgs::msg::TrafficSignal>& traffic_signals,
                                 const std::optional<adore_ros2_msgs::msg::Weather>& weather
-                           )
+                        )
     {
         // Go through route, and update speed at points based on traffic signal positions
         auto route_with_signal = route;
         for( auto& p : route_with_signal.reference_line )
         {
             if( std::any_of( traffic_signals.begin(), traffic_signals.end(), [&]( const auto& s ) {
-                return adore::math::distance_2d( s.second, p.second ) < 3.0 && s.second.state != adore_ros2_msgs::msg::TrafficSignal::GREEN;
-                } ) )
-            p.second.max_speed = 0;
+                return adore::math::distance_2d( s.second, p.second ) < 3.0 &&
+                    s.second.state != adore_ros2_msgs::msg::TrafficSignal::GREEN;
+            } ) )
+            {
+                p.second.max_speed = 0;
+            }
         }
+
+        // Start with current comfort settings, including passenger requests
+        auto custom_comfort_settings = comfort_settings;
+
+        std::string label = "driving mission";
 
         if ( weather.has_value() )
         {
             if ( weather.value().wind_intensity > 2 )
             {
-                dynamics::ComfortSettings custom_comfort_settings;
-                custom_comfort_settings.max_speed = 5.5; // 20 km/h
-            
-                dynamics::Trajectory trajectory = planner.plan_route_trajectory_with_custom_comfort_settings( route_with_signal, vehicle_state_dynamic, traffic_participants, custom_comfort_settings );
-                trajectory.adjust_start_time( vehicle_state_dynamic.time );
-                trajectory.label              = "driving mission (carefully due to wind)";
+                custom_comfort_settings.max_speed =
+                    std::min( custom_comfort_settings.max_speed, 5.5 ); // 20 km/h
 
-                Behavior trajectory_and_signal;
-                trajectory_and_signal.trajectory = dynamics::conversions::to_ros_msg( trajectory );
-
-                return trajectory_and_signal;
+                label = "driving mission (carefully due to wind)";
             }
 
             if ( weather.value().wetness > 20 )
             {
-                dynamics::ComfortSettings custom_comfort_settings;
-                custom_comfort_settings.max_speed = 5.5; // 20 km/h
-            
-                dynamics::Trajectory trajectory = planner.plan_route_trajectory_with_custom_comfort_settings( route_with_signal, vehicle_state_dynamic, traffic_participants, custom_comfort_settings );
-                trajectory.adjust_start_time( vehicle_state_dynamic.time );
-                trajectory.label              = "driving mission (carefully due to rain)";
+                custom_comfort_settings.max_speed =
+                    std::min( custom_comfort_settings.max_speed, 5.5 ); // 20 km/h
 
-                Behavior trajectory_and_signal;
-                trajectory_and_signal.trajectory = dynamics::conversions::to_ros_msg( trajectory );
-
-                return trajectory_and_signal;
+                label = "driving mission (carefully due to rain)";
             }
         }
 
+        dynamics::Trajectory trajectory =
+            planner.plan_route_trajectory_with_custom_comfort_settings(
+                route_with_signal,
+                vehicle_state_dynamic,
+                traffic_participants,
+                custom_comfort_settings
+            );
 
-        dynamics::Trajectory trajectory = planner.plan_route_trajectory( route_with_signal, vehicle_state_dynamic, traffic_participants );
         trajectory.adjust_start_time( vehicle_state_dynamic.time );
-        trajectory.label              = "driving mission";
+        trajectory.label = label;
 
         Behavior trajectory_and_signal;
         trajectory_and_signal.trajectory = dynamics::conversions::to_ros_msg( trajectory );
 
         return trajectory_and_signal;
+    }
+
+    Behavior resume_ride(
+        planner::TrajectoryPlanner& planner,
+        const dynamics::VehicleStateDynamic& vehicle_state_dynamic,
+        const map::Route& route,
+        const dynamics::TrafficParticipantSet& traffic_participants,
+        const dynamics::ComfortSettings& comfort_settings,
+        const std::map<size_t, adore_ros2_msgs::msg::TrafficSignal>& traffic_signals,
+        const std::optional<adore_ros2_msgs::msg::Weather>& weather
+    )
+    {
+        auto out = driving_mission(
+            planner,
+            vehicle_state_dynamic,
+            route,
+            traffic_participants,
+            comfort_settings,
+            traffic_signals,
+            weather
+        );
+
+        out.trajectory.label = "Resume Ride";
+        return out;
     }
 
     Behavior driving_mission_following_managed(
@@ -266,4 +291,3 @@ namespace behavior
     }
 }
 }
-
