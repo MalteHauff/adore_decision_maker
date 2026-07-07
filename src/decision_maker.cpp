@@ -15,6 +15,7 @@
 #include "adore_ros2_msgs/msg/odd.hpp"
 #include "adore_ros2_msgs/msg/traffic_participant.hpp"
 #include "adore_ros2_msgs/msg/traffic_participant_set.hpp"
+#include <adore_dynamics_conversions.hpp>
 #include "behaviors.hpp"
 #include "conditions.hpp"
 
@@ -272,7 +273,7 @@ void DecisionMaker::setup_subscribers()
                                         traffic_participants.remove_old_participants( max_participant_age, now().seconds() );
                                       });
 
-  subscriber_v2x_traffic_participants = create_subscription<adore_ros2_msgs::msg::TrafficParticipantSet>( "/infrastructure/planned_traffic", 1,
+  subscriber_v2x_traffic_participants = create_subscription<adore_ros2_msgs::msg::TrafficParticipantSet>( "/infrastructure/observed_traffic", 1,
                                       [this](const adore_ros2_msgs::msg::TrafficParticipantSet& msg) 
                                       {  
                                         auto participants = dynamics::conversions::to_cpp_type(msg);
@@ -286,7 +287,10 @@ void DecisionMaker::setup_subscribers()
                                         {
                                           if ( !participant.v2x_id.has_value() || v2x_id != participant.v2x_id.value())
                                           {
-                                            traffic_participants.update_traffic_participants( participant );
+                                            if ( !participant.is_same_as( make_default_participant() ) )
+                                            {
+                                              traffic_participants.update_traffic_participants( participant );
+                                            }
                                             continue;
                                           }
 
@@ -356,8 +360,10 @@ void DecisionMaker::timer_callback()
 
   // @TODO, add publisher and behavior for signals
 
-  publisher_v2x_traffic_participant->publish( make_default_participant() );
-
+  if ( v2x_id != 0 )
+  {
+    publisher_v2x_traffic_participant->publish( dynamics::conversions::to_ros_msg(make_default_participant()) );
+  }
   // @TODO, add a cleanup step, that removes old caution zones and old suggested trajectories, old safety corridors
 }
 
@@ -478,7 +484,7 @@ behavior::Behavior DecisionMaker::choose_and_plan_driving_behavior()
   return behavior::emergency(planner, latest_vehicle_state_dynamic);
 }
 
-adore_ros2_msgs::msg::TrafficParticipant DecisionMaker::make_default_participant()
+dynamics::TrafficParticipant DecisionMaker::make_default_participant()
 {
   dynamics::TrafficParticipant participant;
   if( latest_vehicle_state_dynamic.has_value() )
@@ -495,7 +501,8 @@ adore_ros2_msgs::msg::TrafficParticipant DecisionMaker::make_default_participant
   participant.classification      = dynamics::CAR;
   participant.physical_parameters = planner.get_physical_vehicle_parameters();
 
-  return dynamics::conversions::to_ros_msg( participant );
+  // return dynamics::conversions::to_ros_msg( participant );
+  return participant;
 }
 
 } // namespace adore

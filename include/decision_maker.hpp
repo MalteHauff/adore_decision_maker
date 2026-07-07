@@ -110,11 +110,11 @@ private:
   void timer_callback(); // main loop
 
   behavior::Behavior choose_and_plan_driving_behavior();
-  adore_ros2_msgs::msg::TrafficParticipant make_default_participant();
-
+  dynamics::TrafficParticipant make_default_participant();
 
   adore::planner::ObstacleAvoidanceParams obstacle_avoidance_params;
   adore::planner::ActiveAvoidanceState active_avoidance_state;
+
 };
 
 } // namespace adore
