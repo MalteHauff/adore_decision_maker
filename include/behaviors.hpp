@@ -13,17 +13,22 @@
 
 #pragma once
 #include <optional>
+#include <cmath>
 
 #include "dynamics/trajectory.hpp"
+#include "dynamics/traffic_signal.hpp"
 #include "adore_map/route.hpp"
 
 #include "adore_ros2_msgs/msg/trajectory.hpp"
+#include "adore_ros2_msgs/msg/route.hpp"
 #include "adore_ros2_msgs/msg/vehicle_signals.hpp"
 #include "adore_ros2_msgs/msg/traffic_signal.hpp"
+#include "adore_ros2_msgs/msg/traffic_signals.hpp"
 #include "adore_ros2_msgs/msg/safety_corridor.hpp"
 
 #include "dynamics/traffic_participant.hpp"
 #include "planning/trajectory_planner.hpp"
+#include "planning/unstructured_planner.hpp"
 
 #include "adore_dynamics_conversions.hpp"
 #include "adore_ros2_msgs/msg/weather.hpp"
@@ -33,6 +38,9 @@
 #include "planning/planning_helpers.hpp"
 #include "adore_ros2_msgs/msg/odd.hpp"
 
+#include "planning/obstacle_avoidance.hpp"
+#include <planning/active_avoidance_state.hpp>
+
 namespace adore
 {
 namespace behavior
@@ -41,19 +49,23 @@ namespace behavior
     {
         adore_ros2_msgs::msg::Trajectory trajectory;
         std::optional<adore_ros2_msgs::msg::Trajectory> alternative_trajectory;
+    std::optional<adore_ros2_msgs::msg::Route> modified_route;
         adore_ros2_msgs::msg::VehicleSignals signals;
     };
 
     const double MAX_DISTANCE_TO_LAST_TRAJECTORY_POINT_BEFORE_RETURNING_TO_REMOTE_OPERATIONS_DRIVING = 1.0;
 
     Behavior driving_mission(
-                            planner::TrajectoryPlanner& planner,
-                            const dynamics::VehicleStateDynamic& vehicle_state_dynamic,
-                            const map::Route& route,
-                            const dynamics::TrafficParticipantSet& traffic_participants,
-                            const dynamics::ComfortSettings& comfort_settings,
-                            const std::map<size_t, adore_ros2_msgs::msg::TrafficSignal>& traffic_signals,
-                            const std::optional<adore_ros2_msgs::msg::Weather>& weather
+
+        planner::TrajectoryPlanner& planner,
+                                const dynamics::VehicleStateDynamic& vehicle_state_dynamic,  
+                                const map::Route& route,
+                                const dynamics::TrafficParticipantSet& traffic_participants,
+                                const dynamics::ComfortSettings& comfort_settings,
+                                const adore_ros2_msgs::msg::TrafficSignals& traffic_signals,
+                                const std::optional<adore_ros2_msgs::msg::Weather>& weather,
+                                const planner::ObstacleAvoidanceParams& obstacle_avoidance_params,
+                                planner::ActiveAvoidanceState& active_avoidance_state
     );
 
     Behavior resume_ride(
@@ -64,6 +76,14 @@ namespace behavior
         const dynamics::ComfortSettings& comfort_settings,
         const std::map<size_t, adore_ros2_msgs::msg::TrafficSignal>& traffic_signals,
         const std::optional<adore_ros2_msgs::msg::Weather>& weather
+    );
+
+    Behavior driving_unstructured(
+                                planner::HybridAStarPlanner& planner,
+                                const dynamics::VehicleStateDynamic& vehicle_state_dynamic,
+                                const map::Route& route,
+                                const dynamics::TrafficParticipantSet& traffic_participants,
+                                const math::Polygon2d& drivable_area 
     );
 
     Behavior driving_mission_following_managed(

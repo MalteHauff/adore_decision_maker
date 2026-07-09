@@ -21,6 +21,7 @@
 #include "planning/trajectory_planner.hpp"
 #include "adore_ros2_msgs/msg/caution_zone.hpp"
 #include "adore_ros2_msgs/msg/odd.hpp"
+#include "adore_ros2_msgs/msg/route.hpp"
 #include "adore_ros2_msgs/msg/traffic_participant.hpp"
 #include "adore_ros2_msgs/msg/traffic_participant_set.hpp"
 #include "adore_ros2_msgs/msg/weather.hpp"
@@ -29,7 +30,10 @@
 #include "adore_ros2_msgs/msg/passenger_request.hpp"
 #include <dynamics/comfort_settings.hpp>
 #include "adore_ros2_msgs/msg/mission_command.hpp"
-
+#include "planning/obstacle_avoidance.hpp"
+#include "adore_map_conversions.hpp"
+#include "planning/unstructured_planner.hpp"
+#include <planning/active_avoidance_state.hpp>
 
 namespace adore
 {
@@ -56,12 +60,13 @@ private:
   rclcpp::Subscription<adore_ros2_msgs::msg::TrafficParticipantSet>::SharedPtr subscriber_traffic_participants;
   rclcpp::Subscription<adore_ros2_msgs::msg::TrafficParticipantSet>::SharedPtr subscriber_v2x_traffic_participants;
   rclcpp::Subscription<adore_ros2_msgs::msg::Weather>::SharedPtr subscriber_weather;
+  rclcpp::Subscription<adore_ros2_msgs::msg::CautionZone>::SharedPtr subscriber_unstructured_drivable_area;
 
   // Vehicle subscribers
   rclcpp::Subscription<adore_ros2_msgs::msg::VehicleInfo>::SharedPtr subscriber_vehicle_info;
  
   // World subscribers
-  rclcpp::Subscription<adore_ros2_msgs::msg::TrafficSignal>::SharedPtr subscriber_traffic_signal;
+  rclcpp::Subscription<adore_ros2_msgs::msg::TrafficSignals>::SharedPtr subscriber_traffic_signals;
   rclcpp::Subscription<adore_ros2_msgs::msg::SafetyCorridor>::SharedPtr subscriber_safety_corridor;
   rclcpp::Subscription<adore_ros2_msgs::msg::Trajectory>::SharedPtr subscriber_reference_trajectory;
 
@@ -82,10 +87,12 @@ private:
 
   rclcpp::Publisher<adore_ros2_msgs::msg::Trajectory>::SharedPtr publisher_trajectory_decision;
   rclcpp::Publisher<adore_ros2_msgs::msg::Trajectory>::SharedPtr publisher_alternative_trajectory_decision;
+    rclcpp::Publisher<adore_ros2_msgs::msg::Route>::SharedPtr publisher_modified_route;
   rclcpp::Publisher<adore_ros2_msgs::msg::TrafficParticipant>::SharedPtr publisher_v2x_traffic_participant;
 
   // Planning
   planner::TrajectoryPlanner planner; // @TODO Think most of these can be removed
+  planner::HybridAStarPlanner unstructured_planner;
   dynamics::PhysicalVehicleParameters physical_vehicle_parameters;
   //std::shared_ptr<dynamics::ComfortSettings> comfort_settings;
   dynamics::ComfortSettings comfort_settings;
@@ -93,7 +100,7 @@ private:
   // Domain
   std::optional<dynamics::VehicleStateDynamic> latest_vehicle_state_dynamic;
   std::optional<map::Route> latest_route;
-  std::map<size_t, adore_ros2_msgs::msg::TrafficSignal> traffic_signals;
+  adore_ros2_msgs::msg::TrafficSignals traffic_signals;
   std::optional<dynamics::Trajectory> suggested_remote_operator_trajectory; // A trajectory received by a remote operator
   bool remote_operator_drive_approval = false;
   bool passenger_emergency_stop = false;
@@ -109,6 +116,7 @@ private:
 
   dynamics::TrafficParticipantSet traffic_participants;
   std::map<std::string, math::Polygon2d> caution_zones;
+  math::Polygon2d unstructured_drivable_area; // @TODO, make either optional or a hashmap
  
   // DecisionParams               params;
   rclcpp::TimerBase::SharedPtr timer;
@@ -124,6 +132,11 @@ private:
   behavior::Behavior choose_and_plan_driving_behavior();
   adore_ros2_msgs::msg::TrafficParticipant make_default_participant();
   void handle_passenger_request(const adore_ros2_msgs::msg::PassengerRequest& msg);
+  dynamics::TrafficParticipant make_default_participant();
+
+  adore::planner::ObstacleAvoidanceParams obstacle_avoidance_params;
+  adore::planner::ActiveAvoidanceState active_avoidance_state;
+
 };
 
 } // namespace adore
