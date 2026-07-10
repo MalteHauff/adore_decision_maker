@@ -74,8 +74,10 @@ namespace behavior
         const map::Route& route,
         const dynamics::TrafficParticipantSet& traffic_participants,
         const dynamics::ComfortSettings& comfort_settings,
-        const std::map<size_t, adore_ros2_msgs::msg::TrafficSignal>& traffic_signals,
-        const std::optional<adore_ros2_msgs::msg::Weather>& weather
+        const adore_ros2_msgs::msg::TrafficSignals& traffic_signals,
+        const std::optional<adore_ros2_msgs::msg::Weather>& weather,
+        const planner::ObstacleAvoidanceParams& obstacle_avoidance_params,
+        planner::ActiveAvoidanceState& active_avoidance_state
     );
 
     Behavior driving_unstructured(

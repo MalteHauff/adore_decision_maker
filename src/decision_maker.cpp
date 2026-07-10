@@ -469,14 +469,16 @@ behavior::Behavior DecisionMaker::choose_and_plan_driving_behavior()
       resume_ride_requested = false;
 
       return behavior::resume_ride(
-        planner,
-        latest_vehicle_state_dynamic.value(),
-        latest_route.value(),
-        traffic_participants,
-        comfort_settings,
-        traffic_signals,
-        latest_weather
-    );
+          planner,
+          latest_vehicle_state_dynamic.value(),
+          latest_route.value(),
+          traffic_participants,
+          comfort_settings,
+          traffic_signals,
+          latest_weather,
+          obstacle_avoidance_params,
+          active_avoidance_state
+      );
   }
 
 
@@ -581,6 +583,11 @@ void DecisionMaker::handle_passenger_request(
 
             remote_operator_drive_approval = false;
             suggested_remote_operator_trajectory.reset();
+            RCLCPP_INFO(
+                get_logger(),
+                "Resume ride requested via PassengerRequest. Emergency stop cleared." );
+
+            break;
 
         case PR::INCREASE_VELOCITY:
             cs.max_speed *= increase_factor;
@@ -611,22 +618,14 @@ void DecisionMaker::handle_passenger_request(
             cs.distance_headway *= increase_factor;
             changed = true;
             break;
-
-        
-
-    RCLCPP_INFO(
-        get_logger(),
-        "Resume ride requested via PassengerRequest. Emergency stop cleared." );
-
-
+            
         default:
             return;
     }
 
     if (changed)
     {
-        cs.clamp(planner.get_physical_vehicle_parameters()); // enforce physical limits
-        //planner.set_comfort_settings(*comfort_settings);     // push into planner
+        cs.clamp(planner.get_physical_vehicle_parameters()); 
         RCLCPP_INFO(get_logger(),
             "Comfort settings updated: max_speed=%.1f time_headway=%.1f",
             cs.max_speed, cs.time_headway);

@@ -56,7 +56,7 @@ namespace behavior
         std::string weather_label;
 
         dynamics::ComfortSettings weather_comfort_settings = comfort_settings;
-        weather_comfort_settings.max_speed = 5.5; // 20 km/h
+        weather_comfort_settings.max_speed = std::min( weather_comfort_settings.max_speed, 5.5 );// 20 km/h
 
         if( weather.has_value() )
         {
@@ -180,9 +180,10 @@ namespace behavior
         const map::Route& route,
         const dynamics::TrafficParticipantSet& traffic_participants,
         const dynamics::ComfortSettings& comfort_settings,
-        const std::map<size_t, adore_ros2_msgs::msg::TrafficSignal>& traffic_signals,
-        const std::optional<adore_ros2_msgs::msg::Weather>& weather
-    )
+        const adore_ros2_msgs::msg::TrafficSignals& traffic_signals,
+        const std::optional<adore_ros2_msgs::msg::Weather>& weather,
+        const planner::ObstacleAvoidanceParams& obstacle_avoidance_params,
+        planner::ActiveAvoidanceState& active_avoidance_state )
     {
         auto out = driving_mission(
             planner,
@@ -191,8 +192,9 @@ namespace behavior
             traffic_participants,
             comfort_settings,
             traffic_signals,
-            weather
-        );
+            weather,
+            obstacle_avoidance_params,
+            active_avoidance_state );
 
         out.trajectory.label = "Resume Ride";
         return out;

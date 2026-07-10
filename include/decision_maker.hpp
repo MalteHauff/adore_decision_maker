@@ -130,7 +130,6 @@ private:
   void timer_callback(); // main loop
 
   behavior::Behavior choose_and_plan_driving_behavior();
-  adore_ros2_msgs::msg::TrafficParticipant make_default_participant();
   void handle_passenger_request(const adore_ros2_msgs::msg::PassengerRequest& msg);
   dynamics::TrafficParticipant make_default_participant();
 
