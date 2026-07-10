@@ -27,6 +27,7 @@
 #include "adore_ros2_msgs/msg/safety_corridor.hpp"
 
 #include "dynamics/traffic_participant.hpp"
+#include "open_odd_ros2_msgs/msg/odd_evaluation.hpp"
 #include "planning/trajectory_planner.hpp"
 #include "planning/unstructured_planner.hpp"
 
@@ -36,7 +37,6 @@
 
 #include "planning/trajectory_planner.hpp"
 #include "planning/planning_helpers.hpp"
-#include "adore_ros2_msgs/msg/odd.hpp"
 
 #include "planning/obstacle_avoidance.hpp"
 #include <planning/active_avoidance_state.hpp>
@@ -108,7 +108,7 @@ namespace behavior
                                 const dynamics::VehicleStateDynamic& vehicle_state_dynamic,  
                                 const map::Route& route,
                                 const dynamics::TrafficParticipantSet& traffic_participants,
-                                const std::optional<adore_ros2_msgs::msg::Odd>& odd
+                                const std::optional<open_odd_ros2_msgs::msg::OddEvaluation>& odd
     );
 
     Behavior avoiding_safety_corridor(

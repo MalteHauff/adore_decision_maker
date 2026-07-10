@@ -12,12 +12,12 @@
  ********************************************************************************/
 
 #include "decision_maker.hpp"
-#include "adore_ros2_msgs/msg/odd.hpp"
 #include "adore_ros2_msgs/msg/traffic_participant.hpp"
 #include "adore_ros2_msgs/msg/traffic_participant_set.hpp"
 #include <adore_dynamics_conversions.hpp>
 #include "behaviors.hpp"
 #include "conditions.hpp"
+#include "open_odd_ros2_msgs/msg/odd_evaluation.hpp"
 
 #include <adore_math/distance.h>
 
@@ -228,8 +228,8 @@ void DecisionMaker::setup_subscribers()
                                         latest_route = new_route;
                                       });
 
-  subscriber_odd = create_subscription<adore_ros2_msgs::msg::Odd>( "odd", 1,
-                                      [this](const adore_ros2_msgs::msg::Odd& msg) {  latest_odd = msg; });
+  subscriber_odd = create_subscription<open_odd_ros2_msgs::msg::OddEvaluation>( "odd", 1,
+                                      [this](const open_odd_ros2_msgs::msg::OddEvaluation& msg) {  latest_odd = msg; });
 
   subscriber_traffic_participants = create_subscription<adore_ros2_msgs::msg::TrafficParticipantSet>( "traffic_participants", 1,
                                       [this](const adore_ros2_msgs::msg::TrafficParticipantSet& msg) 

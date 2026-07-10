@@ -14,6 +14,7 @@
 #include "behaviors.hpp"
 #include "behaviors_obstacle_avoidance.hpp"
 #include "adore_map_conversions.hpp"
+#include "open_odd_ros2_msgs/msg/odd_evaluation.hpp"
 #include "planning/obstacle_avoidance.hpp"
 #include "planning/active_avoidance.hpp"
 #include <adore_dynamics_conversions.hpp>
@@ -280,7 +281,7 @@ namespace behavior
                                 const dynamics::VehicleStateDynamic& vehicle_state_dynamic,  
                                 const map::Route& route,
                                 const dynamics::TrafficParticipantSet& traffic_participants, 
-                                const std::optional<adore_ros2_msgs::msg::Odd>& odd
+                                const std::optional<open_odd_ros2_msgs::msg::OddEvaluation>& odd
     )
     {
 
@@ -298,9 +299,9 @@ namespace behavior
         planned_trajectory.label = "Minimum Risk Maneuver - due to missing odd topic";
         if ( odd.has_value() )
         {
-            if ( !odd.value().matching )
+            if ( !odd.value().match )
             {
-                planned_trajectory.label = "Minimum Risk Maneuver - " + odd.value().status;
+                planned_trajectory.label = "Minimum Risk Maneuver - " + odd.value().report;
             }
         }
 

@@ -36,6 +36,7 @@ set(PROJECT_DEPS
   sensor_msgs
   yaml_cpp_vendor
   yaml-cpp
+  open_odd_ros2_msgs
 )
 
 foreach(pkg IN LISTS PROJECT_DEPS)
