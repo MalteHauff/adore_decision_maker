@@ -56,14 +56,28 @@ namespace behavior
     const double MAX_DISTANCE_TO_LAST_TRAJECTORY_POINT_BEFORE_RETURNING_TO_REMOTE_OPERATIONS_DRIVING = 1.0;
 
     Behavior driving_mission(
-                                planner::TrajectoryPlanner& planner,
+
+        planner::TrajectoryPlanner& planner,
                                 const dynamics::VehicleStateDynamic& vehicle_state_dynamic,  
                                 const map::Route& route,
                                 const dynamics::TrafficParticipantSet& traffic_participants,
+                                const dynamics::ComfortSettings& comfort_settings,
                                 const adore_ros2_msgs::msg::TrafficSignals& traffic_signals,
                                 const std::optional<adore_ros2_msgs::msg::Weather>& weather,
                                 const planner::ObstacleAvoidanceParams& obstacle_avoidance_params,
                                 planner::ActiveAvoidanceState& active_avoidance_state
+    );
+
+    Behavior resume_ride(
+        planner::TrajectoryPlanner& planner,
+        const dynamics::VehicleStateDynamic& vehicle_state_dynamic,
+        const map::Route& route,
+        const dynamics::TrafficParticipantSet& traffic_participants,
+        const dynamics::ComfortSettings& comfort_settings,
+        const adore_ros2_msgs::msg::TrafficSignals& traffic_signals,
+        const std::optional<adore_ros2_msgs::msg::Weather>& weather,
+        const planner::ObstacleAvoidanceParams& obstacle_avoidance_params,
+        planner::ActiveAvoidanceState& active_avoidance_state
     );
 
     Behavior driving_unstructured(

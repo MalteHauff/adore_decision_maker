@@ -38,11 +38,14 @@ namespace behavior
             const dynamics::VehicleStateDynamic& vehicle_state_dynamic,
             const map::Route& route,
             const dynamics::TrafficParticipantSet& traffic_participants,
+            const dynamics::ComfortSettings& comfort_settings,
             const adore_ros2_msgs::msg::TrafficSignals& traffic_signals,
             const std::optional<adore_ros2_msgs::msg::Weather>& weather,
             const planner::ObstacleAvoidanceParams& params_for_obstacle_avoidance,
             planner::ActiveAvoidanceState& active_avoidance_state )
     {
+
+        planner.set_comfort_settings( comfort_settings );
         // Convert the live traffic signals and let the planner bake the
         // resulting stop behaviour into the route once; the modified route
         // is then threaded through the obstacle-avoidance helpers below.
@@ -53,8 +56,8 @@ namespace behavior
         bool use_weather_comfort_settings = false;
         std::string weather_label;
 
-        dynamics::ComfortSettings weather_comfort_settings;
-        weather_comfort_settings.max_speed = 5.5; // 20 km/h
+        dynamics::ComfortSettings weather_comfort_settings = comfort_settings;
+        weather_comfort_settings.max_speed = std::min( weather_comfort_settings.max_speed, 5.5 );// 20 km/h
 
         if( weather.has_value() )
         {
@@ -171,6 +174,32 @@ namespace behavior
         return trajectory_and_signal;
     }
     
+
+    Behavior resume_ride(
+        planner::TrajectoryPlanner& planner,
+        const dynamics::VehicleStateDynamic& vehicle_state_dynamic,
+        const map::Route& route,
+        const dynamics::TrafficParticipantSet& traffic_participants,
+        const dynamics::ComfortSettings& comfort_settings,
+        const adore_ros2_msgs::msg::TrafficSignals& traffic_signals,
+        const std::optional<adore_ros2_msgs::msg::Weather>& weather,
+        const planner::ObstacleAvoidanceParams& obstacle_avoidance_params,
+        planner::ActiveAvoidanceState& active_avoidance_state )
+    {
+        auto out = driving_mission(
+            planner,
+            vehicle_state_dynamic,
+            route,
+            traffic_participants,
+            comfort_settings,
+            traffic_signals,
+            weather,
+            obstacle_avoidance_params,
+            active_avoidance_state );
+
+        out.trajectory.label = "Resume Ride";
+        return out;
+    }
 
     Behavior driving_mission_following_managed(
                             planner::TrajectoryPlanner& planner,
