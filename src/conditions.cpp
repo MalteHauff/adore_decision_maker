@@ -12,7 +12,7 @@
  ********************************************************************************/
 
 #include "conditions.hpp"
-#include "adore_ros2_msgs/msg/odd.hpp"
+#include "open_odd_ros2_msgs/msg/odd_evaluation.hpp"
 #include <dynamics/vehicle_state.hpp>
 
 
@@ -102,16 +102,16 @@ bool can_drive_managed(
 }
 
 bool odd_conditions_satisfied( 
-                               const std::optional<adore_ros2_msgs::msg::Odd>& odd, 
+                               const std::optional<open_odd_ros2_msgs::msg::OddEvaluation>& odd, 
                                const double& time_now )
 {
     if ( !odd.has_value() )
         return false;
 
-    if ( time_now - odd.value().time > MAXIMUM_ODD_AGE_SECONDS )
-        return false;
+    // if ( time_now - odd.value().time > MAXIMUM_ODD_AGE_SECONDS )
+    //     return false;
     
-    return odd.value().matching;
+    return odd.value().match;
 }
 
 bool must_drive_unstructured( const std::optional<dynamics::VehicleStateDynamic>& vehicle_state_dynamic, 

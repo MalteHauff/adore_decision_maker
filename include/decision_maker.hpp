@@ -20,7 +20,6 @@
 #include "dynamics/comfort_settings.hpp"
 #include "planning/trajectory_planner.hpp"
 #include "adore_ros2_msgs/msg/caution_zone.hpp"
-#include "adore_ros2_msgs/msg/odd.hpp"
 #include "adore_ros2_msgs/msg/route.hpp"
 #include "adore_ros2_msgs/msg/traffic_participant.hpp"
 #include "adore_ros2_msgs/msg/traffic_participant_set.hpp"
@@ -33,6 +32,8 @@
 #include "planning/obstacle_avoidance.hpp"
 #include "adore_map_conversions.hpp"
 #include "planning/unstructured_planner.hpp"
+#include "open_odd_ros2_msgs/msg/odd_evaluation.hpp"
+
 #include <planning/active_avoidance_state.hpp>
 
 namespace adore
@@ -56,7 +57,7 @@ private:
   // Driving subscribers
   rclcpp::Subscription<adore_ros2_msgs::msg::VehicleStateDynamic>::SharedPtr subscriber_vehicle_state_dynamic;
   rclcpp::Subscription<adore_ros2_msgs::msg::Route>::SharedPtr subscriber_route;
-  rclcpp::Subscription<adore_ros2_msgs::msg::Odd>::SharedPtr subscriber_odd;
+  rclcpp::Subscription<open_odd_ros2_msgs::msg::OddEvaluation>::SharedPtr subscriber_odd;
   rclcpp::Subscription<adore_ros2_msgs::msg::TrafficParticipantSet>::SharedPtr subscriber_traffic_participants;
   rclcpp::Subscription<adore_ros2_msgs::msg::TrafficParticipantSet>::SharedPtr subscriber_v2x_traffic_participants;
   rclcpp::Subscription<adore_ros2_msgs::msg::Weather>::SharedPtr subscriber_weather;
@@ -107,7 +108,7 @@ private:
   bool resume_ride_requested = false;
   std::optional<adore_ros2_msgs::msg::SafetyCorridor> latest_safety_corridor;
   std::optional<dynamics::Trajectory> latest_reference_trajectory;
-  std::optional<adore_ros2_msgs::msg::Odd> latest_odd;
+  std::optional<open_odd_ros2_msgs::msg::OddEvaluation> latest_odd;
   std::optional<adore_ros2_msgs::msg::Weather> latest_weather;
   //std::optional<UserComfortSettings> latest_user_comfort;
 

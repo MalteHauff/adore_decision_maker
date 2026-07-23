@@ -16,8 +16,8 @@
 #include <cstdint>
 #include "adore_dynamics_conversions.hpp"
 #include "adore_ros2_msgs/msg/safety_corridor.hpp"
-#include "adore_ros2_msgs/msg/odd.hpp"
 #include <adore_math/polygon.h>
+#include "open_odd_ros2_msgs/msg/odd_evaluation.hpp"
 #include <dynamics/trajectory.hpp>
 
 namespace adore
@@ -36,7 +36,7 @@ namespace adore
         bool needs_remote_operator_assitance( const std::optional<dynamics::VehicleStateDynamic>& vehicle_state_dynamic, const std::map<std::string, math::Polygon2d>& caution_zones);
         bool needs_to_avoid_safety_corridor( const std::optional<dynamics::VehicleStateDynamic>& vehicle_state_dynamic, const std::optional<adore_ros2_msgs::msg::SafetyCorridor>& safety_corridor );
         bool can_drive_managed( const std::optional<dynamics::VehicleStateDynamic>& vehicle_state_dynamic, const double& time_now, const std::optional<math::Polygon2d>& managed_zone, const std::optional<dynamics::Trajectory>& managed_trajectory);
-        bool odd_conditions_satisfied( const std::optional<adore_ros2_msgs::msg::Odd>& odd, const double& time_now );
+        bool odd_conditions_satisfied( const std::optional<open_odd_ros2_msgs::msg::OddEvaluation>& odd, const double& time_now );
         bool must_drive_unstructured( const std::optional<dynamics::VehicleStateDynamic>& vehicle_state_dynamic, const math::Polygon2d& unstructured_drivable_area );
 
     } // namespace conditions
