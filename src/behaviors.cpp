@@ -330,7 +330,7 @@ namespace behavior
         {
             if ( !odd.value().match )
             {
-                planned_trajectory.label = "Minimum Risk Maneuver - " + odd.value().report;
+                planned_trajectory.label = "Minimum Risk Maneuver - (RO not available) " + odd.value().report;
             }
         }
 

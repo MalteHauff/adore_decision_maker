@@ -33,6 +33,8 @@
 #include "adore_map_conversions.hpp"
 #include "planning/unstructured_planner.hpp"
 #include "open_odd_ros2_msgs/msg/odd_evaluation.hpp"
+#include "open_odd_ros2_msgs/msg/odd_evaluation.hpp"
+#include "adore_ros2_msgs/msg/remote_operation_status.hpp"
 
 #include <planning/active_avoidance_state.hpp>
 
@@ -75,6 +77,8 @@ private:
   rclcpp::Subscription<adore_ros2_msgs::msg::CautionZone>::SharedPtr subscriber_caution_zones;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr subscriber_remote_operator_drive_approval;
   rclcpp::Subscription<adore_ros2_msgs::msg::Trajectory>::SharedPtr subscriber_suggested_remote_operator_trajectory;
+
+  rclcpp::Subscription<adore_ros2_msgs::msg::RemoteOperationStatus>::SharedPtr subscriber_remote_operation_status;
   // rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr       subscriber_automation_toggle;
 
 
@@ -116,8 +120,9 @@ private:
   std::optional<math::Polygon2d> latest_managed_zone;
 
   dynamics::TrafficParticipantSet traffic_participants;
-  std::map<std::string, math::Polygon2d> caution_zones;
   math::Polygon2d unstructured_drivable_area; // @TODO, make either optional or a hashmap
+
+  std::optional<adore_ros2_msgs::msg::RemoteOperationStatus> remote_operation_status;
  
   // DecisionParams               params;
   rclcpp::TimerBase::SharedPtr timer;

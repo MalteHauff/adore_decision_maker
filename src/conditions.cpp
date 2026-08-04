@@ -50,19 +50,6 @@ bool has_mission(
     return remaining > MINIMUM_ROUTE_LENGHTH_METERS;
 }
 
-bool needs_remote_operator_assitance( 
-                            const std::optional<dynamics::VehicleStateDynamic>& vehicle_state_dynamic, 
-                            const std::map<std::string, math::Polygon2d>& caution_zones
-                        )
-{
-    if ( !vehicle_state_dynamic.has_value() )
-        return false;
-
-    // check if in a caution zone
-    return std::any_of( caution_zones.begin(), caution_zones.end(),
-                        [&]( const auto& zone ) { return zone.second.point_inside( *vehicle_state_dynamic ); } );
-}
-
 bool needs_to_avoid_safety_corridor(
                                         const std::optional<dynamics::VehicleStateDynamic>& vehicle_state_dynamic, 
                                         const std::optional<adore_ros2_msgs::msg::SafetyCorridor>& safety_corridor 
@@ -124,6 +111,21 @@ bool must_drive_unstructured( const std::optional<dynamics::VehicleStateDynamic>
         return false;
     
     return unstructured_drivable_area.points.size() > 2;
+}
+
+bool remote_operations_is_available( const std::optional<adore_ros2_msgs::msg::RemoteOperationStatus>& remote_operation_status, const double& time_now )
+{
+    if ( !remote_operation_status.has_value() )
+    {
+        return false;
+    }
+
+    if ( time_now - remote_operation_status.value().timestamp > MAX_TIME_SINCE_LAST_REMOTE_OPERATION_STATUS )
+    {
+        return false;
+    }
+
+    return true;
 }
 
 } // namespace conditions

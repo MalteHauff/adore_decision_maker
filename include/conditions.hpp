@@ -15,9 +15,11 @@
 #include <array>
 #include <cstdint>
 #include "adore_dynamics_conversions.hpp"
+#include "adore_ros2_msgs/msg/remote_operation_status.hpp"
 #include "adore_ros2_msgs/msg/safety_corridor.hpp"
 #include <adore_math/polygon.h>
 #include "open_odd_ros2_msgs/msg/odd_evaluation.hpp"
+#include "adore_ros2_msgs/msg/remote_operation_status.hpp"
 #include <dynamics/trajectory.hpp>
 
 namespace adore
@@ -29,15 +31,16 @@ namespace adore
         const double MAXIMUM_REFERENCE_TRAJECTORY_AGE_SECONDS = 1.0; 
         const size_t MINIMUM_ROUTE_LENGHTH_METERS = 1;
         const double MAXIMUM_ODD_AGE_SECONDS = 2.0;
+        const double MAX_TIME_SINCE_LAST_REMOTE_OPERATION_STATUS = 30.0;
 
         // @TODO, improve these two functions, they are too simple currently
         bool has_localization( const std::optional<dynamics::VehicleStateDynamic>& vehicle_state_dynamic, const double& time_now);
         bool has_mission( const std::optional<dynamics::VehicleStateDynamic>& vehicle_state_dynamic, const std::optional<map::Route>& route );
-        bool needs_remote_operator_assitance( const std::optional<dynamics::VehicleStateDynamic>& vehicle_state_dynamic, const std::map<std::string, math::Polygon2d>& caution_zones);
         bool needs_to_avoid_safety_corridor( const std::optional<dynamics::VehicleStateDynamic>& vehicle_state_dynamic, const std::optional<adore_ros2_msgs::msg::SafetyCorridor>& safety_corridor );
         bool can_drive_managed( const std::optional<dynamics::VehicleStateDynamic>& vehicle_state_dynamic, const double& time_now, const std::optional<math::Polygon2d>& managed_zone, const std::optional<dynamics::Trajectory>& managed_trajectory);
         bool odd_conditions_satisfied( const std::optional<open_odd_ros2_msgs::msg::OddEvaluation>& odd, const double& time_now );
         bool must_drive_unstructured( const std::optional<dynamics::VehicleStateDynamic>& vehicle_state_dynamic, const math::Polygon2d& unstructured_drivable_area );
+        bool remote_operations_is_available( const std::optional<adore_ros2_msgs::msg::RemoteOperationStatus>& remote_operation_status, const double& time_now );
 
     } // namespace conditions
 } // namespace adore
