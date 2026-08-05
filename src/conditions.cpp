@@ -128,5 +128,17 @@ bool remote_operations_is_available( const std::optional<adore_ros2_msgs::msg::R
     return true;
 }
 
+bool passenger_wants_vehicle_to_stop( const bool& passenger_emergency_stop, const bool& resume_ride_requested, const double& time_now )
+{
+    // @TODO, needs a time check to make sure the request is not super old
+
+    if ( passenger_emergency_stop && !resume_ride_requested )
+    {
+        return true;
+    }
+
+    return false;
+}
+
 } // namespace conditions
 } // namespace adore

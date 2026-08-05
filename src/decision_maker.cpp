@@ -390,16 +390,23 @@ behavior::Behavior DecisionMaker::choose_and_plan_driving_behavior()
   bool odd_conditions_satisfied = conditions::odd_conditions_satisfied(latest_odd, time_now);
   bool must_drive_unstructured = conditions::must_drive_unstructured( latest_vehicle_state_dynamic, unstructured_drivable_area );
   bool remote_operation_is_available = conditions::remote_operations_is_available( remote_operation_status, time_now );
+  bool passenger_wants_vehicle_to_stand_still = conditions::passenger_wants_vehicle_to_stop( passenger_emergency_stop, resume_ride_requested, time_now );
 
-  // RCLCPP_INFO(get_logger(), "Behavior decision: has_localization=%d, has_mission=%d, needs_remote_operator_assitance=%d, needs_to_avoid_safety_corridor=%d, can_drive_managed=%d, odd_conditions_satisfied=%d , passenger_emergency_stop=%d",
-  //             has_localization, has_mission, needs_remote_operator_assitance, needs_to_avoid_safety_corridor, can_drive_managed, odd_conditions_satisfied, passenger_emergency_stop);
-
-  if (passenger_emergency_stop)
+  if (
+      has_localization &&
+      passenger_wants_vehicle_to_stand_still 
+  )
   {
-      RCLCPP_INFO(get_logger(), "Behavior decision: has_localization=%d, has_mission=%d, needs_remote_operator_assitance=%d, needs_to_avoid_safety_corridor=%d, can_drive_managed=%d, odd_conditions_satisfied=%d , passenger_emergency_stop=%d",
-              has_localization, has_mission, needs_remote_operator_assitance, needs_to_avoid_safety_corridor, can_drive_managed, odd_conditions_satisfied, passenger_emergency_stop);
+      RCLCPP_INFO(get_logger(), "Behavior decision: has_localization=%d, has_mission=%d, needs_to_avoid_safety_corridor=%d, can_drive_managed=%d, odd_conditions_satisfied=%d , passenger_emergency_stop=%d",
+              has_localization, has_mission, needs_to_avoid_safety_corridor, can_drive_managed, odd_conditions_satisfied, passenger_emergency_stop);
 
-      return behavior::emergency(planner, latest_vehicle_state_dynamic);
+    return behavior::minimum_risk(
+                                  planner, 
+                                  latest_vehicle_state_dynamic.value(), 
+                                  latest_route.value(), 
+                                  traffic_participants,
+                                  latest_odd
+                              );
   }
 
   if (
@@ -461,29 +468,6 @@ behavior::Behavior DecisionMaker::choose_and_plan_driving_behavior()
                   latest_managed_zone.value()
     );
   }
-
-  if (
-      has_localization &&
-      has_mission &&
-      odd_conditions_satisfied &&
-      resume_ride_requested
-  )
-  {
-      resume_ride_requested = false;
-
-      return behavior::resume_ride(
-          planner,
-          latest_vehicle_state_dynamic.value(),
-          latest_route.value(),
-          traffic_participants,
-          comfort_settings,
-          traffic_signals,
-          latest_weather,
-          obstacle_avoidance_params,
-          active_avoidance_state
-      );
-  }
-
 
   if (
       has_localization &&

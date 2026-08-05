@@ -173,33 +173,6 @@ namespace behavior
 
         return trajectory_and_signal;
     }
-    
-
-    Behavior resume_ride(
-        planner::TrajectoryPlanner& planner,
-        const dynamics::VehicleStateDynamic& vehicle_state_dynamic,
-        const map::Route& route,
-        const dynamics::TrafficParticipantSet& traffic_participants,
-        const dynamics::ComfortSettings& comfort_settings,
-        const adore_ros2_msgs::msg::TrafficSignals& traffic_signals,
-        const std::optional<adore_ros2_msgs::msg::Weather>& weather,
-        const planner::ObstacleAvoidanceParams& obstacle_avoidance_params,
-        planner::ActiveAvoidanceState& active_avoidance_state )
-    {
-        auto out = driving_mission(
-            planner,
-            vehicle_state_dynamic,
-            route,
-            traffic_participants,
-            comfort_settings,
-            traffic_signals,
-            weather,
-            obstacle_avoidance_params,
-            active_avoidance_state );
-
-        out.trajectory.label = "Resume Ride";
-        return out;
-    }
 
     Behavior driving_mission_following_managed(
                             planner::TrajectoryPlanner& planner,

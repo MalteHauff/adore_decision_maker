@@ -68,18 +68,6 @@ namespace behavior
                                 planner::ActiveAvoidanceState& active_avoidance_state
     );
 
-    Behavior resume_ride(
-        planner::TrajectoryPlanner& planner,
-        const dynamics::VehicleStateDynamic& vehicle_state_dynamic,
-        const map::Route& route,
-        const dynamics::TrafficParticipantSet& traffic_participants,
-        const dynamics::ComfortSettings& comfort_settings,
-        const adore_ros2_msgs::msg::TrafficSignals& traffic_signals,
-        const std::optional<adore_ros2_msgs::msg::Weather>& weather,
-        const planner::ObstacleAvoidanceParams& obstacle_avoidance_params,
-        planner::ActiveAvoidanceState& active_avoidance_state
-    );
-
     Behavior driving_unstructured(
                                 planner::HybridAStarPlanner& planner,
                                 const dynamics::VehicleStateDynamic& vehicle_state_dynamic,

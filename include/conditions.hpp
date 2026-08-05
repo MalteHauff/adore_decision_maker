@@ -15,6 +15,8 @@
 #include <array>
 #include <cstdint>
 #include "adore_dynamics_conversions.hpp"
+#include "adore_ros2_msgs/msg/passenger_request.hpp"
+#include "adore_ros2_msgs/msg/physical_vehicle_parameters.hpp"
 #include "adore_ros2_msgs/msg/remote_operation_status.hpp"
 #include "adore_ros2_msgs/msg/safety_corridor.hpp"
 #include <adore_math/polygon.h>
@@ -41,6 +43,7 @@ namespace adore
         bool odd_conditions_satisfied( const std::optional<open_odd_ros2_msgs::msg::OddEvaluation>& odd, const double& time_now );
         bool must_drive_unstructured( const std::optional<dynamics::VehicleStateDynamic>& vehicle_state_dynamic, const math::Polygon2d& unstructured_drivable_area );
         bool remote_operations_is_available( const std::optional<adore_ros2_msgs::msg::RemoteOperationStatus>& remote_operation_status, const double& time_now );
+        bool passenger_wants_vehicle_to_stop( const bool& passenger_emergency_stop, const bool& resume_ride_requested, const double& time_now );
 
     } // namespace conditions
 } // namespace adore
