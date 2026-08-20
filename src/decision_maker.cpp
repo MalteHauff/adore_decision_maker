@@ -318,9 +318,6 @@ void DecisionMaker::setup_subscribers()
   subscriber_weather = create_subscription<adore_ros2_msgs::msg::Weather>( "weather", 1,
                                       [this](const adore_ros2_msgs::msg::Weather& msg) {  latest_weather = msg; });
 
-  subscriber_remote_operator_drive_approval = create_subscription<std_msgs::msg::Bool>( "suggested_trajectory_accepted", 1,
-                                      [this](const std_msgs::msg::Bool& msg) {  remote_operator_drive_approval = msg.data; });
-
   subscriber_suggested_remote_operator_trajectory = create_subscription<adore_ros2_msgs::msg::Trajectory>( "suggested_remote_operator_trajectory", 1,
                                       [this](const adore_ros2_msgs::msg::Trajectory& msg) { 
 
@@ -448,7 +445,6 @@ behavior::Behavior DecisionMaker::choose_and_plan_driving_behavior()
                                 latest_vehicle_state_dynamic.value(),
                                 latest_route.value(),
                                 traffic_participants,
-                                remote_operator_drive_approval,
                                 suggested_remote_operator_trajectory
     );
   }
@@ -568,7 +564,6 @@ void DecisionMaker::handle_passenger_request(
             passenger_emergency_stop = false;
             resume_ride_requested = true;
 
-            remote_operator_drive_approval = false;
             suggested_remote_operator_trajectory.reset();
             RCLCPP_INFO(
                 get_logger(),
