@@ -94,7 +94,6 @@ namespace behavior
                                 const dynamics::VehicleStateDynamic& vehicle_state_dynamic,  
                                 const map::Route& route,
                                 const dynamics::TrafficParticipantSet& traffic_participants,
-                                bool& approved_to_drive_suggested_remote_operations,
                                 std::optional<dynamics::Trajectory>& suggested_remote_operator_trajectory
     );
 

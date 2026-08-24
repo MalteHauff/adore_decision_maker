@@ -107,7 +107,6 @@ private:
   std::optional<map::Route> latest_route;
   adore_ros2_msgs::msg::TrafficSignals traffic_signals;
   std::optional<dynamics::Trajectory> suggested_remote_operator_trajectory; // A trajectory received by a remote operator
-  bool remote_operator_drive_approval = false;
   bool passenger_emergency_stop = false;
   bool resume_ride_requested = false;
   std::optional<adore_ros2_msgs::msg::SafetyCorridor> latest_safety_corridor;

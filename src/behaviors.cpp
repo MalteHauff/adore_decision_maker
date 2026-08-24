@@ -210,13 +210,12 @@ namespace behavior
                                 const dynamics::VehicleStateDynamic& vehicle_state_dynamic,  
                                 const map::Route& route,
                                 const dynamics::TrafficParticipantSet& traffic_participants,
-                                bool& approved_to_drive_suggested_remote_operations,
                                 std::optional<dynamics::Trajectory>& suggested_remote_operator_trajectory
     )
     {
         Behavior trajectory_and_signals;
 
-        if ( suggested_remote_operator_trajectory.has_value() && approved_to_drive_suggested_remote_operations )
+        if ( suggested_remote_operator_trajectory.has_value() )
         {
             auto trajectory = suggested_remote_operator_trajectory.value();
             
@@ -234,7 +233,6 @@ namespace behavior
 
                 // Return the vehicle to waiting for intructions if it doesn't pass the above checks
                 suggested_remote_operator_trajectory.reset();
-                approved_to_drive_suggested_remote_operations = false;
             }
         }
 
